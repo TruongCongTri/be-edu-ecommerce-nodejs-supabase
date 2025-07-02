@@ -11,6 +11,8 @@ import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
 import { LocationOutputDto } from "../../database/dtos.output/LocationOutput.dto";
 import { PaginationMetaDto } from "../../database/dtos.output/PaginationMeta.dto";
 import { buildQueryOptions } from "../../../utils/buildQueryOptions";
+import { DEFAULT_PAGE, DEFAULT_PER_PAGE } from "../../../constants/enum";
+import { createPaginationMeta } from "../../../utils/helpers/paginationHelper";
 
 export class LocationService {
   // private locationRepo = locationRepository;
@@ -26,9 +28,10 @@ export class LocationService {
     locations: LocationOutputDto[];
     pagination: PaginationMetaDto;
   }> => {
-    const { page = 1, per_page = 10 } = queryParams; // Destructure page and per_page for calculations
+    // --- BLOCK 1: Destructure Query Parameters ---
+    const { page = DEFAULT_PAGE, per_page = DEFAULT_PER_PAGE } = queryParams; // Destructure page and per_page for calculations
 
-    //1. Use the utility to build the find options
+    // --- BLOCK 2: Build Find Options ---
     const findOptions = buildQueryOptions<Location>({
       queryParams,
       // Fields to search within if 'search' query param is provided
@@ -37,7 +40,7 @@ export class LocationService {
       defaultOrder: { createdAt: "DESC" },
     });
 
-    //2. Fetch all applications belonging to this job seeker,
+    // --- BLOCK 3: Execute Database Query (findAndCount) ---
     const [categories, total] = await this.locationRepo.findAndCount({
       ...findOptions, // Spread the generated findOptions
       relations: {
@@ -49,19 +52,20 @@ export class LocationService {
         // },
       },
     });
-
-    // 3. Map the retrieved Application entities to ApplicationOutputDto instances.
+    // --- BLOCK 4: Map Entities to DTOs ---
     const locationDtos = categories.map(LocationOutputDto.fromEntity);
 
-    // 4. Calculate pagination metadata
-    const total_page = Math.ceil(total / per_page!); // Use non-null assertion for per_page
-    const paginationMeta = new PaginationMetaDto(
-      page!, // Use non-null assertion for page
-      per_page!, // Use non-null assertion for per_page
-      total,
-      total_page
-    );
-    // Return an object containing both the data and the pagination metadata
+    // --- BLOCK 5: Calculate and Create Pagination Metadata ---
+    // const total_page = Math.ceil(total / per_page!); // Use non-null assertion for per_page
+    // const paginationMeta = new PaginationMetaDto(
+    //   page!, // Use non-null assertion for page
+    //   per_page!, // Use non-null assertion for per_page
+    //   total,
+    //   total_page
+    // );
+    const paginationMeta = createPaginationMeta(page!, per_page!, total);
+
+    // --- BLOCK 6: Return Data and Pagination Metadata ---
     return {
       locations: locationDtos,
       pagination: paginationMeta,
@@ -74,9 +78,10 @@ export class LocationService {
     locations: LocationOutputDto[];
     pagination: PaginationMetaDto;
   }> => {
-    const { page = 1, per_page = 10 } = queryParams; // Destructure page and per_page for calculations
+    // --- BLOCK 1: Destructure Query Parameters ---
+    const { page = DEFAULT_PAGE, per_page = DEFAULT_PER_PAGE } = queryParams; // Destructure page and per_page for calculations
 
-    //1. Use the utility to build the find options
+    // --- BLOCK 2: Build Find Options ---
     const findOptions = buildQueryOptions<Location>({
       queryParams,
       // Fields to search within if 'search' query param is provided
@@ -85,7 +90,7 @@ export class LocationService {
       defaultOrder: { createdAt: "DESC" },
     });
 
-    //2. Fetch all applications belonging to this job seeker,
+    // --- BLOCK 3: Execute Database Query (findAndCount) ---
     const [categories, total] = await this.locationRepo.findAndCount({
       ...findOptions, // Spread the generated findOptions
       relations: {
@@ -98,18 +103,13 @@ export class LocationService {
       },
     });
 
-    // 3. Map the retrieved Application entities to ApplicationOutputDto instances.
+    // --- BLOCK 4: Map Entities to DTOs ---
     const locationDtos = categories.map(LocationOutputDto.fromEntity);
 
-    // 4. Calculate pagination metadata
-    const total_page = Math.ceil(total / per_page!); // Use non-null assertion for per_page
-    const paginationMeta = new PaginationMetaDto(
-      page!, // Use non-null assertion for page
-      per_page!, // Use non-null assertion for per_page
-      total,
-      total_page
-    );
-    // Return an object containing both the data and the pagination metadata
+    // --- BLOCK 5: Calculate and Create Pagination Metadata ---
+    const paginationMeta = createPaginationMeta(page!, per_page!, total);
+
+    // --- BLOCK 6: Return Data and Pagination Metadata ---
     return {
       locations: locationDtos,
       pagination: paginationMeta,

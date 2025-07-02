@@ -1,6 +1,4 @@
-// src/app/services/application.service.ts
-
-import { FindOptionsWhere, Like } from "typeorm";
+import { FindOptionsWhere } from "typeorm";
 import { AppError } from "../../../utils/errors/AppError";
 import { ApplicationOutputDto } from "../../database/dtos.output/ApplicationOutput.dto";
 import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
@@ -10,10 +8,7 @@ import {
   Application,
   ApplicationStatus,
 } from "../../database/entities/Application";
-import {
-  applicationRepository,
-  ApplicationRepositoryType,
-} from "../repositories/application.repository";
+import { ApplicationRepositoryType } from "../repositories/application.repository";
 import { CategoryRepositoryType } from "../repositories/category.repository";
 import {
   jobRepository,
@@ -22,13 +17,14 @@ import {
 import { LocationRepositoryType } from "../repositories/location.repository";
 import { SkillRepositoryType } from "../repositories/skill.repository";
 import {
-  employerRepository,
   EmployerRepositoryType,
-  jobSeekerRepository,
   JobSeekerRepositoryType,
 } from "../repositories/user.repository";
 import { buildQueryOptions } from "../../../utils/buildQueryOptions";
+import { getProfileByUserId } from "../../../utils/helpers/profileHelper";
+import { createPaginationMeta } from "../../../utils/helpers/paginationHelper";
 import { PaginationMetaDto } from "../../database/dtos.output/PaginationMeta.dto";
+import { DEFAULT_PAGE, DEFAULT_PER_PAGE } from "../../../constants/enum";
 
 export class ApplicationService {
   // private appRepo = applicationRepository;
@@ -132,16 +128,22 @@ export class ApplicationService {
     applications: ApplicationOutputDto[];
     pagination: PaginationMetaDto;
   }> => {
-    // 1. Fetch the Job Seeker profile to ensure it exists and get its ID.
-    const jobSeeker = await this.jobSeekerRepo.findOne({
-      where: { user: { id: userId } },
-    });
+    // --- BLOCK 1: Fetch User - Job Seeker Profile and Handle Not Found ---
+    // const jobSeeker = await this.jobSeekerRepo.findOne({
+    //   where: { user: { id: userId } },
+    // });
+    // if (!jobSeeker) throw new AppError("Job seeker profile not found", 404);
+    //Use the helper for profile fetching
+    const jobSeeker = await getProfileByUserId(
+      this.jobSeekerRepo,
+      userId,
+      "Job seeker"
+    );
 
-    if (!jobSeeker) throw new AppError("Job seeker profile not found", 404);
+    // --- BLOCK 2: Destructure Query Parameters ---
+    const { page = DEFAULT_PAGE, per_page = DEFAULT_PER_PAGE } = queryParams; // Destructure page and per_page for calculations
 
-    const { page = 1, per_page = 10 } = queryParams; // Destructure page and per_page for calculations
-
-    // Use the utility to build the find options
+    // --- BLOCK 3: Build Find Options ---
     const findOptions = buildQueryOptions<Application>({
       queryParams,
       // Mandatory filter: only applications belonging to this job seeker
@@ -152,7 +154,7 @@ export class ApplicationService {
       defaultOrder: { appliedAt: "DESC" },
     });
 
-    // 2. Fetch all applications belonging to this job seeker,
+    // --- BLOCK 4: Execute Database Query (findAndCount) ---
     const [applications, total] = await this.appRepo.findAndCount({
       ...findOptions, // Spread the generated findOptions
       relations: {
@@ -170,18 +172,21 @@ export class ApplicationService {
       },
     });
 
-    // 3. Map the retrieved Application entities to ApplicationOutputDto instances.
+    // --- BLOCK 5: Map Entities to DTOs ---
     const applicationDtos = applications.map(ApplicationOutputDto.fromEntity);
 
-    // 4. Calculate pagination metadata
-    const total_page = Math.ceil(total / per_page!); // Use non-null assertion for per_page
-    const paginationMeta = new PaginationMetaDto(
-      page!, // Use non-null assertion for page
-      per_page!, // Use non-null assertion for per_page
-      total,
-      total_page
-    );
-    // Return an object containing both the data and the pagination metadata
+    // --- BLOCK 6: Calculate and Create Pagination Metadata ---
+    // const total_page = Math.ceil(total / per_page!); // Use non-null assertion for per_page
+    // const paginationMeta = new PaginationMetaDto(
+    //   page!, // Use non-null assertion for page
+    //   per_page!, // Use non-null assertion for per_page
+    //   total,
+    //   total_page
+    // );
+    //Use the helper for pagination metadata
+    const paginationMeta = createPaginationMeta(page!, per_page!, total);
+
+    // --- BLOCK 7: Return Data and Pagination Metadata ---
     return {
       applications: applicationDtos,
       pagination: paginationMeta,
@@ -243,34 +248,37 @@ export class ApplicationService {
     applications: ApplicationOutputDto[];
     pagination: PaginationMetaDto;
   }> => {
-    // 1. Fetch the Employer profile associated with the userId.
-    const employer = await this.employerRepo.findOne({
-      where: { user: { id: userId } },
-    });
+    // --- BLOCK 1: Fetch User - Employer Profile and Handle Not Found ---
+    // const employer = await this.employerRepo.findOne({
+    //   where: { user: { id: userId } },
+    // });
+    // if (!employer) throw new AppError("Employer profile not found", 404);
+    const employer = await getProfileByUserId(
+      this.employerRepo,
+      userId,
+      "Employer"
+    );
 
-    if (!employer) throw new AppError("Employer profile not found", 404);
+    // --- BLOCK 2: Destructure Query Parameters ---
+    const { page = DEFAULT_PAGE, per_page = DEFAULT_PER_PAGE } = queryParams; // Destructure page and per_page for calculations
 
-    const { page = 1, per_page = 10 } = queryParams; // Destructure page and per_page for calculations
-
-    // Use the utility to build the find options
+    // --- BLOCK 3: Build Find Options ---
     const findOptions = buildQueryOptions<Application>({
       queryParams,
       // Initial where clause: applications must belong to jobs owned by this employer
-      initialWhere: { job: { employer: { id: employer.id } } } as FindOptionsWhere<Application>,
+      initialWhere: {
+        job: { employer: { id: employer.id } },
+      } as FindOptionsWhere<Application>,
       // Search fields: search by job title, job description, or job seeker name
       searchFields: [
-        'job.title',
-        'job.description',
-        'jobSeeker.user.fullName', // Assuming fullName is on the User entity
+        "job.title",
+        "job.description",
+        "jobSeeker.user.fullName", // Assuming fullName is on the User entity
       ],
       defaultOrder: { appliedAt: "DESC" },
     });
 
-    // --- IMPORTANT DEBUGGING LINE ---
-    console.log("DEBUG: findOptions.where generated by buildQueryOptions:", JSON.stringify(findOptions.where, null, 2));
-    // --- END DEBUGGING LINE ---
-
-    // 2. Fetch all applications belonging to this job seeker,
+    // --- BLOCK 4: Execute Database Query (findAndCount) ---
     const [applications, total] = await this.appRepo.findAndCount({
       ...findOptions, // Apply pagination, order, and dynamic search where clause
       relations: {
@@ -286,19 +294,22 @@ export class ApplicationService {
         },
       },
     });
-    
-    // 3. Map the retrieved Application entities to ApplicationOutputDto instances.
+
+    // --- BLOCK 5: Map Entities to DTOs ---
     const applicationDtos = applications.map(ApplicationOutputDto.fromEntity);
 
-    // 4. Calculate pagination metadata
-    const total_page = Math.ceil(total / per_page!); // Use non-null assertion for per_page
-    const paginationMeta = new PaginationMetaDto(
-      page!, // Use non-null assertion for page
-      per_page!, // Use non-null assertion for per_page
-      total,
-      total_page
-    );
-    // Return an object containing both the data and the pagination metadata
+    // --- BLOCK 6: Calculate and Create Pagination Metadata ---
+    // const total_page = Math.ceil(total / per_page!); // Use non-null assertion for per_page
+    // const paginationMeta = new PaginationMetaDto(
+    //   page!, // Use non-null assertion for page
+    //   per_page!, // Use non-null assertion for per_page
+    //   total,
+    //   total_page
+    // );
+    //Use the helper for pagination metadata
+    const paginationMeta = createPaginationMeta(page!, per_page!, total);
+
+    // --- BLOCK 7: Return Data and Pagination Metadata ---
     return {
       applications: applicationDtos,
       pagination: paginationMeta,
@@ -320,13 +331,18 @@ export class ApplicationService {
     applications: ApplicationOutputDto[];
     pagination: PaginationMetaDto;
   }> => {
-    // 1. Fetch the Employer profile associated with the userId.
-    const employer = await this.employerRepo.findOne({
-      where: { user: { id: userId } },
-    });
-    if (!employer) throw new AppError("Employer profile not found", 404);
+    // --- BLOCK 1: Fetch User - Employer Profile and Handle Not Found ---
+    // const employer = await this.employerRepo.findOne({
+    //   where: { user: { id: userId } },
+    // });
+    // if (!employer) throw new AppError("Employer profile not found", 404);
+    const employer = await getProfileByUserId(
+      this.employerRepo,
+      userId,
+      "Employer"
+    );
 
-    // 2. Fetch the Job to ensure it exists and belongs to this employer.
+    // --- BLOCK 2: Fetch Job - ensure it exists and belongs to this employer ---
     // This is crucial for authorization and data integrity.
     const job = await this.jobRepo.findOne({
       where: {
@@ -336,19 +352,20 @@ export class ApplicationService {
     });
     if (!job) throw new AppError("Job not found or not owned by you", 404);
 
-    const { page = 1, per_page = 10 } = queryParams; // Destructure page and per_page for calculations
+    // --- BLOCK 3: Destructure Query Parameters ---
+    const { page = DEFAULT_PAGE, per_page = DEFAULT_PER_PAGE } = queryParams; // Destructure page and per_page for calculations
 
-    // 3. Build query options using the utility function
+    // --- BLOCK 4: Build Find Options ---
     const findOptions = buildQueryOptions<Application>({
       queryParams,
       // Initial where clause: applications must belong to this specific job
       initialWhere: { job: { id: jobId } } as FindOptionsWhere<Application>,
       // Search fields: Job Seeker's first and last name
-      searchFields: ['jobSeeker.user.firstName', 'jobSeeker.user.lastName'],
+      searchFields: ["jobSeeker.user.firstName", "jobSeeker.user.lastName"],
       defaultOrder: { appliedAt: "DESC" },
     });
-    
-    // 4. Fetch applications and their total count using findAndCount
+
+    // --- BLOCK 5: Execute Database Query (findAndCount) ---
     const [applications, total] = await this.appRepo.findAndCount({
       ...findOptions, // Apply pagination, order, and dynamic search where clause
       relations: {
@@ -367,19 +384,20 @@ export class ApplicationService {
       },
     });
 
-    // 5. Map entities to DTOs
+    // --- BLOCK 6: Map Entities to DTOs ---
     const applicationDtos = applications.map(ApplicationOutputDto.fromEntity);
 
-    // 6. Calculate and return pagination metadata
-    const total_page = Math.ceil(total / per_page!);
-    const paginationMeta = new PaginationMetaDto(
-      page!,
-      per_page!,
-      total,
-      total_page
-    );
+    // --- BLOCK 7: Calculate and Create Pagination Metadata ---
+    // const total_page = Math.ceil(total / per_page!);
+    // const paginationMeta = new PaginationMetaDto(
+    //   page!,
+    //   per_page!,
+    //   total,
+    //   total_page
+    // );
+    const paginationMeta = createPaginationMeta(page!, per_page!, total);
 
-    // Return an object containing both the data and the pagination metadata
+    // --- BLOCK 8: Return Data and Pagination Metadata ---
     return {
       applications: applicationDtos,
       pagination: paginationMeta,

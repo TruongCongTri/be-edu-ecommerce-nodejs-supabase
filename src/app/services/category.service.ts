@@ -13,6 +13,8 @@ import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
 import { PaginationMetaDto } from "../../database/dtos.output/PaginationMeta.dto";
 import { buildQueryOptions } from "../../../utils/buildQueryOptions";
 import { CategoryOutputDto } from "../../database/dtos.output/CategoryOutput.dto";
+import { DEFAULT_PAGE, DEFAULT_PER_PAGE } from "../../../constants/enum";
+import { createPaginationMeta } from "../../../utils/helpers/paginationHelper";
 
 export class CategoryService {
   // private cateRepo = categoryRepository;
@@ -27,9 +29,10 @@ export class CategoryService {
     categories: CategoryOutputDto[];
     pagination: PaginationMetaDto;
   }> => {
-    const { page = 1, per_page = 10 } = queryParams; // Destructure page and per_page for calculations
+    // --- BLOCK 1: Destructure Query Parameters ---
+    const { page = DEFAULT_PAGE, per_page = DEFAULT_PER_PAGE } = queryParams; // Destructure page and per_page for calculations
 
-    //1. Use the utility to build the find options
+    // --- BLOCK 2: Build Find Options ---
     const findOptions = buildQueryOptions<Category>({
       queryParams,
       // Fields to search within if 'search' query param is provided
@@ -37,7 +40,8 @@ export class CategoryService {
       // Default order for the results
       defaultOrder: { createdAt: "DESC" },
     });
-    //2. Fetch all applications belonging to this job seeker,
+
+    // --- BLOCK 3: Execute Database Query (findAndCount) ---
     const [categories, total] = await this.cateRepo.findAndCount({
       ...findOptions, // Spread the generated findOptions
       relations: {
@@ -50,18 +54,20 @@ export class CategoryService {
       },
     });
 
-    // 3. Map the retrieved Application entities to ApplicationOutputDto instances.
+    // --- BLOCK 4: Map Entities to DTOs ---
     const categoryDtos = categories.map(CategoryOutputDto.fromEntity);
 
-    // 4. Calculate pagination metadata
-    const total_page = Math.ceil(total / per_page!); // Use non-null assertion for per_page
-    const paginationMeta = new PaginationMetaDto(
-      page!, // Use non-null assertion for page
-      per_page!, // Use non-null assertion for per_page
-      total,
-      total_page
-    );
-    // Return an object containing both the data and the pagination metadata
+    // --- BLOCK 5: Calculate and Create Pagination Metadata ---
+    // const total_page = Math.ceil(total / per_page!); // Use non-null assertion for per_page
+    // const paginationMeta = new PaginationMetaDto(
+    //   page!, // Use non-null assertion for page
+    //   per_page!, // Use non-null assertion for per_page
+    //   total,
+    //   total_page
+    // );
+    const paginationMeta = createPaginationMeta(page!, per_page!, total);
+
+    // --- BLOCK 6: Return Data and Pagination Metadata ---
     return {
       categories: categoryDtos,
       pagination: paginationMeta,
@@ -74,9 +80,10 @@ export class CategoryService {
     categories: CategoryOutputDto[];
     pagination: PaginationMetaDto;
   }> => {
-    const { page = 1, per_page = 10 } = queryParams; // Destructure page and per_page for calculations
+    // --- BLOCK 1: Destructure Query Parameters ---
+    const { page = DEFAULT_PAGE, per_page = DEFAULT_PER_PAGE } = queryParams; // Destructure page and per_page for calculations
 
-    //1. Use the utility to build the find options
+    // --- BLOCK 2: Build Find Options ---
     const findOptions = buildQueryOptions<Category>({
       queryParams,
       // Fields to search within if 'search' query param is provided
@@ -84,7 +91,8 @@ export class CategoryService {
       // Default order for the results
       defaultOrder: { createdAt: "DESC" },
     });
-    //2. Fetch all applications belonging to this job seeker,
+
+    // --- BLOCK 3: Execute Database Query (findAndCount) ---
     const [categories, total] = await this.cateRepo.findAndCount({
       ...findOptions, // Spread the generated findOptions
       relations: {
@@ -97,18 +105,13 @@ export class CategoryService {
       },
     });
 
-    // 3. Map the retrieved Application entities to ApplicationOutputDto instances.
+    // --- BLOCK 4: Map Entities to DTOs ---
     const categoryDtos = categories.map(CategoryOutputDto.fromEntity);
 
-    // 4. Calculate pagination metadata
-    const total_page = Math.ceil(total / per_page!); // Use non-null assertion for per_page
-    const paginationMeta = new PaginationMetaDto(
-      page!, // Use non-null assertion for page
-      per_page!, // Use non-null assertion for per_page
-      total,
-      total_page
-    );
-    // Return an object containing both the data and the pagination metadata
+    // --- BLOCK 5: Calculate and Create Pagination Metadata ---
+    const paginationMeta = createPaginationMeta(page!, per_page!, total);
+
+    // --- BLOCK 6: Return Data and Pagination Metadata ---
     return {
       categories: categoryDtos,
       pagination: paginationMeta,
