@@ -13,13 +13,24 @@ import { UpdateSkillDto } from "../../database/dtos/UpdateSkill.dto";
 import { UserRole } from "../../../constants/enum";
 
 import { SkillController } from "../controllers/skill.controller";
+import { SkillService } from "../services/skill.service";
+import { skillRepository } from "../repositories/skill.repository";
+import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
 
 const router = Router();
-const skillController = new SkillController();
+// Dependency Injection (DI) in Controllers and Services:
+const skillService = new SkillService(skillRepository); // Pass repo to service
+const skillController = new SkillController(skillService); // Pass service to controller
 
 // Public access: Get all skills
 router.get("/", 
+  validateRequest(BaseQueryParamsDto, "query"),
   asyncHandler(skillController.getAllSkills)
+);
+// Public access: Get all skills with their jobs
+router.get("/jobs", 
+  validateRequest(BaseQueryParamsDto, "query"),
+  asyncHandler(skillController.getAllSkillsWithJobs)
 );
 // Public access: Get single skill
 router.get("/:slug",

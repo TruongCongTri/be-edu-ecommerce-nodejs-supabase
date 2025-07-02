@@ -13,13 +13,24 @@ import { UpdateCategoryDto } from "../../database/dtos/UpdateCategory.dto";
 import { UserRole } from "../../../constants/enum";
 
 import { CategoryController } from "../controllers/category.controller";
+import { CategoryService } from "../services/category.service";
+import { categoryRepository } from "../repositories/category.repository";
+import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
 
 const router = Router();
-const cateController = new CategoryController();
+// Dependency Injection (DI) in Controllers and Services:
+const categoryService = new CategoryService(categoryRepository); // Pass repo to service
+const cateController = new CategoryController(categoryService); // Pass service to controller
 
 // Public access: Get all categories
 router.get("/", 
+  validateRequest(BaseQueryParamsDto, "query"),
   asyncHandler(cateController.getAllCategories)
+);
+// Public access: Get all categories with their jobs
+router.get("/jobs", 
+  validateRequest(BaseQueryParamsDto, "query"),
+  asyncHandler(cateController.getAllCategoriesWithJobs)
 );
 // Public access: Get single category
 router.get("/:slug",

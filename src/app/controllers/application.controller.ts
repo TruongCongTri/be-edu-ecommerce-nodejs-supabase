@@ -1,105 +1,88 @@
 // src/app/controllers/application.controller.ts
-import { Request, Response } from "express";
-import { instanceToPlain } from "class-transformer";
+import { Response } from "express";
 import { ApplicationService } from "../services/application.service";
 import { AuthenticatedRequest } from "../middlewares/authenticateMiddleware";
 import { successResponse } from "../../../utils/errors/responses/successResponse";
 import { UpdateApplicationStatusDto } from "../../database/dtos/UpdateApplicationStatus.dto";
+import { CreateApplicationDto } from "../../database/dtos/CreateApplication.dto";
+import { ApplicationOutputDto } from "../../database/dtos.output/ApplicationOutput.dto";
+import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
 
 export class ApplicationController {
-  private appService = new ApplicationService();
+  // private appService = new ApplicationService();
+  private appService: ApplicationService;
 
-  createApplication = async (req: AuthenticatedRequest, res: Response) => {
+  constructor(appService: ApplicationService) {
+    this.appService = appService;
+  }
+
+  // getMyApplications = async (req: AuthenticatedRequest, res: Response) => {
+  //   const userId = req.user!.id;
+  //   const role = req.user!.role;
+
+  //   const data =
+  //     role === "job_seeker"
+  //       ? await this.appService.getApplicationsForJobSeeker(userId)
+  //       : await this.appService.getApplicationsForEmployer(userId);
+
+  //   return successResponse({
+  //     res,
+  //     message: "Applications fetched successfully",
+  //     data: { applications: instanceToPlain(data) },
+  //   });
+  // };
+
+  // job seeker specific methods
+  createApplication = async (
+    req: AuthenticatedRequest<{}, {}, CreateApplicationDto>,
+    res: Response
+  ) => {
+    // Extract the ID of the authenticated job seeker
     const userId = req.user!.id;
-    const result = await this.appService.createApplication(userId, req.body);
+
+    // Delegate to ApplicationService to handle application creation logic
+    const resultDto = await this.appService.createApplication(userId, req.body);
 
     return successResponse({
       res,
       message: "Application submitted successfully",
-      data: { application: instanceToPlain(result) },
+      data: { application: resultDto },
     });
   };
-
-  getMyApplications = async (req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user!.id;
-    const role = req.user!.role;
-
-    const data =
-      role === "job_seeker"
-        ? await this.appService.getApplicationsForJobSeeker(userId)
-        : await this.appService.getApplicationsForEmployer(userId);
-
-    return successResponse({
-      res,
-      message: "Applications fetched successfully",
-      data: { applications: instanceToPlain(data) },
-    });
-  };
-
   getMyApplicationsForJobSeeker = async (
-    req: AuthenticatedRequest,
+    req: AuthenticatedRequest<any, BaseQueryParamsDto>,
     res: Response
   ) => {
+    // Extract the ID of the authenticated job seeker
     const userId = req.user!.id;
+    // Extract the validated query parameters
+    const queryParams = req.query;
 
-    const applications = await this.appService.getApplicationsForJobSeeker(
-      userId
-    );
-    const plainData = instanceToPlain(applications);
+    // Delegate to ApplicationService to fetch all applications for this job seeker
+    // Expecting an array of ApplicationOutputDto instances
+    const { applications, pagination } =
+      await this.appService.getApplicationsForJobSeeker(userId, queryParams);
+    // const plainData = instanceToPlain(applications);
 
     return successResponse({
       res,
       message: "Fetched your applications successfully",
-      data: { applications: plainData },
+      data: { applications: applications },
+      pagination: pagination,
     });
   };
-
-  getMyApplicationsForEmployer = async (
-    req: AuthenticatedRequest,
-    res: Response
-  ) => {
-    const userId = req.user!.id;
-
-    const applications = await this.appService.getApplicationsForEmployer(
-      userId
-    );
-    const plainData = instanceToPlain(applications);
-
-    return successResponse({
-      res,
-      message: "Fetched all applications for your jobs.",
-      data: { applications: plainData },
-    });
-  };
-
-  getApplicationsForJob = async (
-    req: AuthenticatedRequest<{ id: string }>,
-    res: Response
-  ) => {
-    const userId = req.user!.id;
-    const { id } = req.params;
-
-    const applications = await this.appService.getApplicationsForJob(
-      userId,
-      id
-    );
-    const plainData = instanceToPlain(applications);
-
-    return successResponse({
-      res,
-      message: "Fetched applications for the job.",
-      data: { applications: plainData },
-    });
-  };
-
   getApplicationDetailForJobSeeker = async (
     req: AuthenticatedRequest<{ applicationId: string }>,
     res: Response
   ) => {
+    // Extract the ID of the authenticated job seeker
     const userId = req.user!.id;
+    // Extract the application ID from the URL parameters
     const { applicationId } = req.params;
 
-    const result = await this.appService.getApplicationDetailForJobSeeker(
+    // Delegate to ApplicationService to fetch the specific application detail
+    // This service method will also handle authorization (ensuring the application belongs to the job seeker)
+    const resultDtos = await this.appService.getApplicationDetailForJobSeeker(
       userId,
       applicationId
     );
@@ -107,7 +90,56 @@ export class ApplicationController {
     return successResponse({
       res,
       message: "Get application detail successfully",
-      data: { application: instanceToPlain(result) },
+      data: { application: resultDtos },
+    });
+  };
+
+  // employer specific methods
+  getMyApplicationsForEmployer = async (
+    req: AuthenticatedRequest<any, BaseQueryParamsDto>,
+    res: Response
+  ) => {
+    // Extract the ID of the authenticated employer
+    const userId = req.user!.id;
+    // Extract the validated query parameters
+    const queryParams = req.query;
+
+    // Delegate to ApplicationService to fetch all applications related to this employer's jobs
+    // Expecting an array of ApplicationOutputDto instances
+    const { applications, pagination } =
+      await this.appService.getApplicationsForEmployer(userId, queryParams);
+    // const plainData = instanceToPlain(applications);
+
+    return successResponse({
+      res,
+      message: "Fetched all applications for your jobs.",
+      data: { applications: applications },
+      pagination: pagination,
+    });
+  };
+
+  getApplicationsForJobForEmployer = async (
+    req: AuthenticatedRequest<{ id: string }, BaseQueryParamsDto>,
+    res: Response
+  ) => {
+    // Extract the ID of the authenticated employer
+    const userId = req.user!.id;
+    // Extract the job ID from the URL parameters
+    const { id: jobId } = req.params;
+    // Extract the validated query parameters
+    const queryParams = req.query;
+
+    // Delegate to ApplicationService to fetch applications for this specific job
+    // This service method will also handle authorization (ensuring the job belongs to the employer)
+    const { applications, pagination } =
+      await this.appService.getApplicationsForJobForEmployer(userId, jobId, queryParams);
+    // const plainData = instanceToPlain(applications);
+
+    return successResponse({
+      res,
+      message: "Fetched applications for the job.",
+      data: { applications: applications },
+      pagination: pagination,
     });
   };
 
@@ -115,43 +147,46 @@ export class ApplicationController {
     req: AuthenticatedRequest<{ applicationId: string }>,
     res: Response
   ) => {
+    // Extract the ID of the authenticated employer
     const userId = req.user!.id;
+    // Extract the application ID from the URL parameters
     const { applicationId } = req.params;
 
-    const result = await this.appService.getApplicationDetailForEmployer(
-      userId,
-      applicationId
-    );
+    // Delegate to ApplicationService to fetch the specific application detail
+    // This service method will also handle authorization (ensuring the application belongs to one of the employer's jobs)
+    const resultDto: ApplicationOutputDto =
+      await this.appService.getApplicationDetailForEmployer(
+        userId,
+        applicationId
+      );
 
     return successResponse({
       res,
       message: "Get application detail successfully",
-      data: { application: instanceToPlain(result) },
+      data: { application: resultDto },
     });
   };
 
   updateApplicationStatus = async (
-    req: AuthenticatedRequest<
-      { applicationId: string },
-      any,
-      UpdateApplicationStatusDto
-    >,
+    req: AuthenticatedRequest<{ id: string }, any, UpdateApplicationStatusDto>,
     res: Response
   ) => {
+    // Extract the ID of the authenticated employer
     const userId = req.user!.id;
-    const { applicationId } = req.params;
+    // Extract the application ID from the URL parameters
+    const { id: applicationId } = req.params; // Renaming 'id' to 'applicationId' for clarity
+    // Extract the DTO from the request body (contains the new status)
     const dto = req.body;
 
-    const updatedApplication = await this.appService.updateApplicationStatus(
-      userId,
-      applicationId,
-      dto
-    );
+    // Delegate to ApplicationService to update the application status
+    // This service method will handle authorization (ensuring the application's job belongs to the employer)
+    const updatedApplicationDto: ApplicationOutputDto =
+      await this.appService.updateApplicationStatus(userId, applicationId, dto);
 
     return successResponse({
       res,
       message: "Application status updated successfully",
-      data: { application: instanceToPlain(updatedApplication) },
+      data: { application: updatedApplicationDto },
     });
   };
 }

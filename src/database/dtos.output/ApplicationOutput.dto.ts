@@ -3,6 +3,7 @@ import { Application } from "../entities/Application";
 import { ApplicationStatus } from "../entities/Application";
 import { JobPartialOutputDto } from "./JobPartialOutput.dto"; // basic job info
 import { JobSeekerProfileOutputDto } from "./JobSeekerProfileOutput.dto"; // or just base info
+import { EmployerProfileOutputDto } from "./EmployerProfileOutput.dto";
 
 export class ApplicationOutputDto {
   @Expose()

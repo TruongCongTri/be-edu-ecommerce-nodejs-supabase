@@ -5,24 +5,130 @@ import { CreateLocationDto } from "../../database/dtos/CreateLocation.dto";
 import { UpdateLocationDto } from "../../database/dtos/UpdateLocation.dto";
 
 import { AppError } from "../../../utils/errors/AppError";
+import { EntityNotFoundError } from "typeorm";
+import { checkForbiddenWords } from "../../../utils/forbiddenWordsChecker";
+import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
+import { LocationOutputDto } from "../../database/dtos.output/LocationOutput.dto";
+import { PaginationMetaDto } from "../../database/dtos.output/PaginationMeta.dto";
+import { buildQueryOptions } from "../../../utils/buildQueryOptions";
 
 export class LocationService {
-  private locationRepo = locationRepository;
+  // private locationRepo = locationRepository;
+  // constructor() {}
 
-  constructor() {}
+  // Repo is injected via constructor
+  constructor(private locationRepo = locationRepository) {}
 
   // Get all Locations - public access
-  getAllLocations = async (): Promise<Location[]> => {
-    return await this.locationRepo.find({ order: { createdAt: "DESC" } });
-  }
+  getAllLocations = async (
+    queryParams: BaseQueryParamsDto
+  ): Promise<{
+    locations: LocationOutputDto[];
+    pagination: PaginationMetaDto;
+  }> => {
+    const { page = 1, per_page = 10 } = queryParams; // Destructure page and per_page for calculations
+
+    //1. Use the utility to build the find options
+    const findOptions = buildQueryOptions<Location>({
+      queryParams,
+      // Fields to search within if 'search' query param is provided
+      searchFields: ["name", "code"],
+      // Default order for the results
+      defaultOrder: { createdAt: "DESC" },
+    });
+
+    //2. Fetch all applications belonging to this job seeker,
+    const [categories, total] = await this.locationRepo.findAndCount({
+      ...findOptions, // Spread the generated findOptions
+      relations: {
+        // jobs: {
+        //   employer: true,
+        //   category: true,
+        //   skills: true,
+        //   locations: true,
+        // },
+      },
+    });
+
+    // 3. Map the retrieved Application entities to ApplicationOutputDto instances.
+    const locationDtos = categories.map(LocationOutputDto.fromEntity);
+
+    // 4. Calculate pagination metadata
+    const total_page = Math.ceil(total / per_page!); // Use non-null assertion for per_page
+    const paginationMeta = new PaginationMetaDto(
+      page!, // Use non-null assertion for page
+      per_page!, // Use non-null assertion for per_page
+      total,
+      total_page
+    );
+    // Return an object containing both the data and the pagination metadata
+    return {
+      locations: locationDtos,
+      pagination: paginationMeta,
+    };
+  };
+  // Get all Locations with their jobs - public access
+  getAllLocationsWithJobs = async (
+    queryParams: BaseQueryParamsDto
+  ): Promise<{
+    locations: LocationOutputDto[];
+    pagination: PaginationMetaDto;
+  }> => {
+    const { page = 1, per_page = 10 } = queryParams; // Destructure page and per_page for calculations
+
+    //1. Use the utility to build the find options
+    const findOptions = buildQueryOptions<Location>({
+      queryParams,
+      // Fields to search within if 'search' query param is provided
+      searchFields: ["name", "code"],
+      // Default order for the results
+      defaultOrder: { createdAt: "DESC" },
+    });
+
+    //2. Fetch all applications belonging to this job seeker,
+    const [categories, total] = await this.locationRepo.findAndCount({
+      ...findOptions, // Spread the generated findOptions
+      relations: {
+        jobs: {
+          employer: true,
+          category: true,
+          skills: true,
+          locations: true,
+        },
+      },
+    });
+
+    // 3. Map the retrieved Application entities to ApplicationOutputDto instances.
+    const locationDtos = categories.map(LocationOutputDto.fromEntity);
+
+    // 4. Calculate pagination metadata
+    const total_page = Math.ceil(total / per_page!); // Use non-null assertion for per_page
+    const paginationMeta = new PaginationMetaDto(
+      page!, // Use non-null assertion for page
+      per_page!, // Use non-null assertion for per_page
+      total,
+      total_page
+    );
+    // Return an object containing both the data and the pagination metadata
+    return {
+      locations: locationDtos,
+      pagination: paginationMeta,
+    };
+  };
   // Get single Location by slug - public access
   getLocationByCode = async (code: string): Promise<Location> => {
-    const location = await this.locationRepo.findOne({
-      where: { code },
-    });
-    if (!location) throw new AppError("Location not found", 404);
-    return location;
-  }
+    try {
+      const location = await this.locationRepo.findOneOrFail({
+        where: { code },
+      });
+      return location;
+    } catch (error) {
+      if (error instanceof EntityNotFoundError) {
+        throw new AppError(`Location with Code ${location} not found.`, 404);
+      }
+      throw error;
+    }
+  };
   // Get single Location with its jobs by slug - public access
   getLocationWithJobsByCode = async (code: string): Promise<Location> => {
     const location = await this.locationRepo.findOne({
@@ -31,10 +137,14 @@ export class LocationService {
     });
     if (!location) throw new AppError("Location not found", 404);
     return location;
-  }
+  };
 
   // Create new Location - restricted access for only admin
   createLocation = async (dto: CreateLocationDto): Promise<Location> => {
+    // 1. Perform content checks using the utility function
+    checkForbiddenWords([dto.name, dto.code], "Location");
+
+    // 2. Manual check for unique name, code before attempting to save
     const existingName = await this.locationRepo.findOneBy({ name: dto.name });
     if (existingName) throw new AppError("Location already exists", 409);
 
@@ -42,10 +152,12 @@ export class LocationService {
     if (existingCode)
       throw new AppError("Location with this code already exists", 409);
 
+    // 3. Create the entity instance
     const locationToCreate = this.locationRepo.create({
       ...dto,
     });
 
+    // 4. Save the new category to the database
     return await this.locationRepo.save(locationToCreate);
   };
   // Update a Location - restricted access for only admin
@@ -53,28 +165,47 @@ export class LocationService {
     codeParam: string,
     dto: UpdateLocationDto
   ): Promise<Location> => {
+    // 1. Find the category to update by slug
     const locationToUpdate = await this.getLocationByCode(codeParam);
     if (!locationToUpdate) throw new AppError("Location not found", 404);
 
     const { name, code } = dto;
+    // 2. Check for unique name, code conflict ONLY if the name is actually changing
+    // This correctly avoids false positives if the name, code isn't being updated
     if (name !== locationToUpdate.name) {
       const existingName = await this.locationRepo.findOneBy({ name });
       if (existingName) throw new AppError("Location already exists", 409);
     }
     if (code !== locationToUpdate.code) {
       const existingCode = await this.locationRepo.findOneBy({ code });
-      if (existingCode) throw new AppError("Location with this code already exists", 409);
+      if (existingCode)
+        throw new AppError("Location with this code already exists", 409);
     }
-    locationToUpdate.name = name || locationToUpdate.name;
-    locationToUpdate.code = code || locationToUpdate.code;
-    // skill.slug = dto.name ? slugify(dto.name) : skill.slug;
 
+    // 3. Prepare texts for forbidden words check
+    // This is correctly getting the *effective* name and code after considering DTO updates.
+    const nameToCheck = name !== undefined ? name : locationToUpdate.name;
+    const codeToCheck = code !== undefined ? code : locationToUpdate.code;
+    checkForbiddenWords([nameToCheck, codeToCheck], "Location");
+
+    // 4. Merge DTO into the existing location entity
+    this.locationRepo.merge(locationToUpdate, {
+      ...dto,
+    });
+
+    // 5. Save the updated location
     return await this.locationRepo.save(locationToUpdate);
   };
   // Delete a Location - restricted access for only admin
   deleteLocation = async (code: string): Promise<void> => {
-    const locationToDelete = await this.getLocationByCode(code);
-    if (!locationToDelete) throw new AppError("Location not found", 404);
+    const locationToDelete = await this.getLocationWithJobsByCode(code);
+
+    if (locationToDelete.jobs && locationToDelete.jobs.length > 0) {
+      throw new AppError(
+        "Cannot delete location: It has associated jobs.",
+        400
+      ); // Or 409 Conflict
+    }
 
     await this.locationRepo.remove(locationToDelete);
   };

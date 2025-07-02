@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { ValidationError } from "class-validator";
 import { errorResponse } from "../../../utils/errors/responses/errorResponse";
 import { AppError } from "../../../utils/errors/AppError";
-import { QueryFailedError } from "typeorm";// <--- Add this import
+import { QueryFailedError } from "typeorm"; // <--- Add this import
 // import { EntityNotFoundError } from "typeorm"; // You might also need this later
 // import { PostgresError } from "pg-error-enum"; // If using PostgreSQL, for more specific error codes
 
@@ -76,7 +76,6 @@ export const errorHandler = (
 
   // 3. Handle TypeORM QueryFailedError (e.g., unique constraint violation)
   if (err instanceof QueryFailedError) {
-
     const driverError = err.driverError;
     let message = "Database error";
     let statusCode = 500;
@@ -85,10 +84,10 @@ export const errorHandler = (
       // PostgreSQL unique_violation error code
       message = "A record with this unique identifier already exists.";
       statusCode = 409; // Conflict
-      // You can parse driverError.detail or driverError.constraint for more specific info
-      // e.g., "Key (email)=(test@example.com) already exists."
-      if (driverError.detail) {
-        message += ` ${driverError.detail}`;
+      // Optional: try to extract the field name if possible and safe
+      const match = driverError.detail?.match(/Key \((.*?)\)=/);
+      if (match && match[1]) {
+        message = `The provided ${match[1]} already exists.`;
       }
     } else {
       // For other QueryFailedError types, you might keep it generic or log them

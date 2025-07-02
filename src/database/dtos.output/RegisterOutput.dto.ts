@@ -1,5 +1,6 @@
 import { Expose } from "class-transformer";
 import { User } from "../entities/User";
+import { UserRole } from "../../../constants/enum";
 
 export class RegisterOutputDto {
   @Expose()
@@ -7,17 +8,17 @@ export class RegisterOutputDto {
   @Expose()
   email!: string;
   @Expose()
-  role!: string;
+  role!: UserRole;
 
   constructor(partial: Partial<RegisterOutputDto>) {
     Object.assign(this, partial);
   }
 
-  static fromData(register: User): RegisterOutputDto {
+  static fromData(user: User): RegisterOutputDto {
     return new RegisterOutputDto({
-      fullName: register.fullName,
-      email: register.email,
-      role: register.role,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
     });
   }
 }

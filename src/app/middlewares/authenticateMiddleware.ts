@@ -2,12 +2,9 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import "dotenv/config";
 import { UserRole } from "../../../constants/enum";
+import { AppError } from "../../../utils/errors/AppError";
 
 const JWT_SECRET = process.env.JWT_SECRET || "jwt_secret_key";
-
-// export interface AuthenticatedRequest extends Request {
-//   user?: { id: string; role: string }; // extend as needed
-// }
 
 export interface AuthenticatedRequest<
   Params = {},
@@ -29,7 +26,7 @@ export const authenticateMiddleware = (
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Unauthenticated: Token missing" });
+    throw new AppError("Authentication failed: Token missing", 401);
   }
 
   const token = authHeader.split(" ")[1];
@@ -40,11 +37,16 @@ export const authenticateMiddleware = (
       role: string;
     };
     if (!Object.values(UserRole).includes(decoded.role as UserRole)) {
-      return res.status(403).json({ message: "Invalid role in token" });
+      throw new AppError("Authentication failed: Invalid role in token payload.", 401);
     }
     req.user = { id: decoded.id, role: decoded.role as UserRole };
     next();
   } catch (error) {
-    return res.status(401).json({ message: "Unauthenticated: Invalid token" });
+    if (error instanceof jwt.JsonWebTokenError) {
+        throw new AppError("Authentication failed: Invalid token.", 401);
+    } else if (error instanceof jwt.TokenExpiredError) {
+        throw new AppError("Authentication failed: Token expired.", 401);
+    }
+    throw new AppError("Authentication failed: An unexpected error occurred.", 401);
   }
 };

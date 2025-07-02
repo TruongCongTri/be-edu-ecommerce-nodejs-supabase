@@ -10,13 +10,13 @@ export class EmployerProfileOutputDto extends BaseProfileOutputDto {
   slug!: string;
 
   @Expose()
-  companyWebsite?: string;
+  companyWebsite?: string | null; 
 
   @Expose()
-  companyDescription?: string;
+  companyDescription?: string | null; 
 
   @Expose()
-  companyLogoUrl?: string;
+  companyLogoUrl?: string | null; 
 
   constructor(partial: Partial<EmployerProfileOutputDto>) {
     super(partial);
@@ -29,11 +29,12 @@ export class EmployerProfileOutputDto extends BaseProfileOutputDto {
       fullName: employer.user.fullName,
       email: employer.user.email,
       role: employer.user.role,
+      address: employer.user.address ?? null,
       companyName: employer.companyName,
       slug: employer.slug,
-      companyWebsite: employer.companyWebsite,
-      companyDescription: employer.companyDescription,
-      companyLogoUrl: employer.companyLogoUrl,
+      companyWebsite: employer.companyWebsite ?? null,
+      companyDescription: employer.companyDescription ?? null,
+      companyLogoUrl: employer.companyLogoUrl ?? null,
     });
   }
 }

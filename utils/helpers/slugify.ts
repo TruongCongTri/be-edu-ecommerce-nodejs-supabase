@@ -10,7 +10,7 @@ export function slugify(input: string): string {
   const timestamp = now
     .toISOString()
     .replace(/[-:.TZ]/g, "")          // remove non-numeric
-    .slice(0, 14);                    // get yyyyMMddHHmmss
+    .slice(0, 14);                    // get YYYYMMDDHHmmss
 
   return `${baseSlug}-${timestamp}`;
 }

@@ -21,13 +21,14 @@ export function validateRequest<T extends object>(
     });
 
     if (errors.length > 0) {
-      return res.status(400).json({
-        message: "Validation failed",
-        errors: errors.map(err => ({
-          property: err.property,
-          constraints: err.constraints,
-        })),
-      });
+      // return res.status(400).json({
+      //   message: "Validation failed",
+      //   errors: errors.map(err => ({
+      //     property: err.property,
+      //     constraints: err.constraints,
+      //   })),
+      // });
+      throw errors;
     }
 
     next();

@@ -13,13 +13,24 @@ import { UpdateLocationDto } from "../../database/dtos/UpdateLocation.dto";
 import { UserRole } from "../../../constants/enum";
 
 import { LocationController } from "../controllers/location.controller";
+import { LocationService } from "../services/location.service";
+import { locationRepository } from "../repositories/location.repository";
+import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
 
 const router = Router();
-const locationController = new LocationController();
+// Dependency Injection (DI) in Controllers and Services:
+const locationService = new LocationService(locationRepository); // Pass repo to service
+const locationController = new LocationController(locationService); // Pass service to controller
 
 // Public access: Get all locations
 router.get("/", 
+  validateRequest(BaseQueryParamsDto, "query"),
   asyncHandler(locationController.getAllLocations)
+);
+// Public access: Get all locations with their jobs
+router.get("/jobs", 
+  validateRequest(BaseQueryParamsDto, "query"),
+  asyncHandler(locationController.getAllLocationsWithJobs)
 );
 // Public access: Get single location
 router.get("/:code",

@@ -61,9 +61,9 @@ export class CreateJobDto {
   @IsArray({ message: "Locations must be an array." })
   @ArrayNotEmpty({ message: "At least one location is required." })
   @ArrayUnique({ message: "Duplicate location IDs are not allowed." })
-  // @IsUUID("4", {
-  //   each: true,
-  //   message: "Each location ID must be a valid UUID.",
-  // })
+  @IsUUID("4", {
+    each: true,
+    message: "Each location ID must be a valid UUID.",
+  })
   locationIds!: string[];
 }

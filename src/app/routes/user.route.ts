@@ -14,15 +14,31 @@ import { UpdateEmployerProfileDto } from "../../database/dtos/UpdateEmployerProf
 import { UserController } from "../controllers/user.controller";
 import { UpdateJobSeekerDto } from "../../database/dtos/UpdateJobSeeker.dto";
 import { UpdateEmployerDto } from "../../database/dtos/UpdateEmployer.dto";
+import { UserService } from "../services/user.service";
+
+import { skillRepository } from "../repositories/skill.repository";
+import {
+  userRepository,
+  employerRepository,
+  jobSeekerRepository,
+} from "../repositories/user.repository";
+import { UpdateUserDto } from "../../database/dtos/UpdateUser.dto";
 
 const router = Router();
-const userController = new UserController();
+// Dependency Injection (DI) in Controllers and Services:
+const userService = new UserService(
+  userRepository,
+  employerRepository,
+  jobSeekerRepository,
+  skillRepository
+); // Pass repo to service
+const userController = new UserController(userService); // Pass service to controller
 
 // Profile
 router.get(
   "/profile",
   authenticateMiddleware,
-  asyncHandler(userController.getProfile)
+  asyncHandler(userController.getProfile.bind(userController))
 );
 
 router.put(
@@ -34,9 +50,12 @@ router.put(
       return validateRequest(UpdateJobSeekerDto, "body")(req, res, next);
     if (role === "employer")
       return validateRequest(UpdateEmployerDto, "body")(req, res, next);
-    return next(); // admin can be validated manually
+    if (role === "admin") { // Explicitly apply UpdateUserDto for admin
+      return validateRequest(UpdateUserDto, "body")(req, res, next);
+    }
+    return next();
   },
-  asyncHandler(userController.updateProfile)
+  asyncHandler(userController.updateProfile.bind(userController))
 );
 
 export default router;

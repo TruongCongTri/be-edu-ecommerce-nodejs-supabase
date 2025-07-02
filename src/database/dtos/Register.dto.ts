@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, Length } from "class-validator";
+import { IsEmail, IsOptional, IsPhoneNumber, IsString, Length } from "class-validator";
 
 export class RegisterDto {
   @IsString({ message: "Full name must be a string." })
@@ -14,5 +14,6 @@ export class RegisterDto {
 
   @IsOptional()
   @IsString({ message: "Phone number must be a string." })
+  // @IsPhoneNumber()
   phoneNumber?: string;
 }

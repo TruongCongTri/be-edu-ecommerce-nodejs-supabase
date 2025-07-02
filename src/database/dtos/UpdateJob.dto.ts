@@ -10,6 +10,7 @@ import {
   Length,
 } from "class-validator";
 import { EmploymentType, ExperienceLevel } from "../../../constants/enum";
+import { Transform } from "class-transformer";
 
 export class UpdateJobDto {
   @IsOptional()
@@ -28,10 +29,12 @@ export class UpdateJobDto {
   requirements?: string;
 
   @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? Number(value) : value)) // Handles undefined and converts if present
   @IsNumber({}, { message: "Minimum salary must be a number." })
   salaryMin?: number;
 
   @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? Number(value) : value)) // Handles undefined and converts if present
   @IsNumber({}, { message: "Maximum salary must be a number." })
   salaryMax?: number;
 

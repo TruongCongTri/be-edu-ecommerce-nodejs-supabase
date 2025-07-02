@@ -4,3 +4,5 @@ import { Skill } from "../../database/entities/Skill";
 
 export const skillRepository: Repository<Skill> =
   AppDataSource.getRepository(Skill);
+
+  export type SkillRepositoryType = Repository<Skill>;  

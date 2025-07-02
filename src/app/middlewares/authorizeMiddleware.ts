@@ -1,5 +1,6 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "./authenticateMiddleware";
+import { AppError } from "../../../utils/errors/AppError";
 
 /**
  * Middleware to authorize users based on allowed roles
@@ -10,9 +11,7 @@ export const authorizeMiddleware = (allowedRoles: string[]) => {
     const userRole = req.user?.role;
 
     if (!userRole || !allowedRoles.includes(userRole)) {
-      return res.status(403).json({
-        message: "Forbidden: You do not have permission to access this resource.",
-      });
+      throw new AppError("Forbidden: You do not have permission to access this resource.", 403);
     }
 
     next();

@@ -4,3 +4,5 @@ import { Application } from "../../database/entities/Application";
 
 export const applicationRepository: Repository<Application> =
   AppDataSource.getRepository(Application);
+
+  export type ApplicationRepositoryType = typeof applicationRepository;

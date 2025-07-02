@@ -11,63 +11,75 @@ import { instanceToPlain } from "class-transformer";
 import { RegisterOutputDto } from "../../database/dtos.output/RegisterOutput.dto";
 
 export class AuthController {
-  private authService = new AuthService();
+  // private authService = new AuthService();
+  // constructor() {}
 
-  constructor() {}
+  // Service is injected via constructor
+  constructor(private authService: AuthService) {}
 
   registerJobSeeker = async (
     req: Request<{}, {}, RegisterDto>,
     res: Response
   ) => {
-    const result =  await this.authService.register(req.body, UserRole.JOB_SEEKER);
-    
+    // Delegate to AuthService, passing the registration data and the specific role
+    const result = await this.authService.register(
+      req.body,
+      UserRole.JOB_SEEKER
+    );
+
     const registerDto = RegisterOutputDto.fromData(result);
-    const plainData = instanceToPlain(registerDto);
+    // const plainData = instanceToPlain(registerDto);
 
     return successResponse({
       res,
       message: "Job seeker registered",
-      data: { register: plainData },
+      data: { register: registerDto },
     });
   };
   registerEmployer = async (
     req: Request<{}, {}, RegisterDto>,
     res: Response
   ) => {
+    // Delegate to AuthService, passing the registration data and the specific role
     const result = await this.authService.register(req.body, UserRole.EMPLOYER);
-    
+
     const registerDto = RegisterOutputDto.fromData(result);
-    const plainData = instanceToPlain(registerDto);
+    // const plainData = instanceToPlain(registerDto);
 
     return successResponse({
       res,
       message: "Employer registered",
-      data: { register: plainData },
+      data: { register: registerDto },
     });
   };
-  registerAdmin = async (req: Request<{}, {}, RegisterDto>, res: Response) => {
+  registerAdmin = async (
+    req: Request<{}, {}, RegisterDto>, 
+    res: Response
+  ) => {
+    // Delegate to AuthService, passing the registration data and the specific role
     const result = await this.authService.register(req.body, UserRole.ADMIN);
-    
+
     const registerDto = RegisterOutputDto.fromData(result);
-    const plainData = instanceToPlain(registerDto);
+    // const plainData = instanceToPlain(registerDto);
 
     return successResponse({
       res,
       message: "Admin registered",
-      data: { register: plainData },
+      data: { register: registerDto },
     });
   };
 
   login = async (req: Request<{}, {}, LoginDto>, res: Response) => {
+    // Delegate to AuthService to handle login logic (authentication, token generation)
     const result = await this.authService.login(req.body);
 
-    const jobDto = LoginOutputDto.fromData(result.token);
-    const plainData = instanceToPlain(jobDto);
+    const loginOutputDto = LoginOutputDto.fromData(result.token);
+    // const plainData = instanceToPlain(loginOutputDto);
 
     return successResponse({
       res,
       message: "Login successful",
-      data: { login: plainData },
+      data: { login: loginOutputDto },
     });
   };
 
@@ -75,11 +87,15 @@ export class AuthController {
     req: AuthenticatedRequest<{}, {}, ChangePasswordDto>,
     res: Response
   ) => {
+    // Extract the ID of the authenticated user
     const userId = req.user!.id;
+
+    // Delegate to AuthService to handle password change logic
     await this.authService.changePassword(userId, req.body);
     return successResponse({
       res,
       message: "Password changed successfully",
+      statusCode: 204,
     });
   };
 }

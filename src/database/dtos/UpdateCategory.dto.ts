@@ -1,4 +1,3 @@
-// src/database/dtos/UpdateCategory.dto.ts
 import { IsOptional, IsString, Length } from "class-validator";
 
 export class UpdateCategoryDto {

@@ -1,4 +1,4 @@
-import { FORBIDDEN_WORDS } from "../.,/../constants/enum";
+import { FORBIDDEN_WORDS } from "../constants/enum";
 import { AppError } from "../utils/errors/AppError";
 /**
  * Checks if any of the provided texts contain forbidden words.
