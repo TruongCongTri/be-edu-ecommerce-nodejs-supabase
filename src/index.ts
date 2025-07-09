@@ -17,7 +17,7 @@ import { errorHandler } from "./app/middlewares/errorHandler";
 import { transformMiddleware } from "./app/middlewares/transformer.middleware";
 
 const app = express();
-const PORT = (process.env.LOCAL_PORT || 5000);
+const port = 5000;
 
 const allowedOrigins = ["http://localhost:3000", "https://your-domain.com"];
 
@@ -56,9 +56,9 @@ AppDataSource.initialize()
     app.use("/api/applications", ApplicationRouter);
 
     app.use(errorHandler);
-    
-    app.listen(PORT, () => {
-      console.log(`🚀 Server is running at http://localhost:${PORT}`);
+
+    app.listen(port, () => {
+      console.log(`🚀 Server is running at ${port}`);
     });
   })
   .catch((error) => console.log(error));
