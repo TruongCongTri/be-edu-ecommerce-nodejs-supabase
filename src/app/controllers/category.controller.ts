@@ -1,8 +1,6 @@
 import { Request, Response } from "express";
 import { CategoryService } from "../services/category.service";
 import { successResponse } from "../../../utils/errors/responses/successResponse";
-import { instanceToPlain } from "class-transformer";
-import { CategoryOutputDto } from "../../database/dtos.output/CategoryOutput.dto";
 import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
 
 export class CategoryController {
@@ -22,9 +20,6 @@ export class CategoryController {
 
     const { categories, pagination } = await this.cateService.getAllCategories(queryParams);
 
-    // const categoryDtos = categories.map(CategoryOutputDto.fromEntity);
-    // const plainData = instanceToPlain(categoryDtos);
-
     // Pass the DTO instances directly. successResponse will handle instanceToPlain.
     return successResponse({
       res,
@@ -43,9 +38,6 @@ export class CategoryController {
 
     const { categories, pagination } = await this.cateService.getAllCategoriesWithJobs(queryParams);
 
-    // const categoryDtos = categories.map(CategoryOutputDto.fromEntity);
-    // const plainData = instanceToPlain(categoryDtos);
-
     // Pass the DTO instances directly. successResponse will handle instanceToPlain.
     return successResponse({
       res,
@@ -60,56 +52,44 @@ export class CategoryController {
     const { slug } = req.params;
     const category = await this.cateService.getCategoryBySlug(slug);
 
-    const categoryDto = CategoryOutputDto.fromEntity(category);
-    // const plainData = instanceToPlain(categoryDto);
-
     return successResponse({
       res,
       message: "Single Category",
-      data: { category: categoryDto },
+      data: { category: category },
     });
   };
   // GET /api/categories/:slug/jobs
   getCategoryWithJobsBySlug = async (req: Request, res: Response) => {
     const { slug } = req.params;
-    const category = await this.cateService.getCategoryWithJobsBySlug(slug);
-
-    const categoryDto = CategoryOutputDto.fromEntity(category);
-    // const plainData = instanceToPlain(categoryDto);
+    const categoryWithJobs = await this.cateService.getCategoryWithJobsBySlug(slug);
 
     return successResponse({
       res,
       message: "Single Category and its jobs",
-      data: { category: categoryDto },
+      data: { category: categoryWithJobs },
     });
   };
 
   // POST /api/categories
   createCategory = async (req: Request, res: Response) => {
-    const category = await this.cateService.createCategory(req.body);
-
-    const categoryDto = CategoryOutputDto.fromEntity(category);
-    // const plainData = instanceToPlain(categoryDto);
+    const createdCategory = await this.cateService.createCategory(req.body);
 
     return successResponse({
       res,
       message: "Category created successfully",
-      data: { category: categoryDto },
+      data: { category: createdCategory },
     });
   };
 
   // PUT /api/categories/:slug
   updateCategory = async (req: Request, res: Response) => {
     const { slug } = req.params;
-    const category = await this.cateService.updateCategory(slug, req.body);
-
-    const categoryDto = CategoryOutputDto.fromEntity(category);
-    // const plainData = instanceToPlain(categoryDto);
+    const updatedCategory = await this.cateService.updateCategory(slug, req.body);
 
     return successResponse({
       res,
       message: "Category updated successfully",
-      data: { category: categoryDto },
+      data: { category: updatedCategory },
     });
   };
 

@@ -22,18 +22,15 @@ export class AuthController {
     res: Response
   ) => {
     // Delegate to AuthService, passing the registration data and the specific role
-    const result = await this.authService.register(
+    const registeredJobSeeker = await this.authService.register(
       req.body,
       UserRole.JOB_SEEKER
     );
 
-    const registerDto = RegisterOutputDto.fromData(result);
-    // const plainData = instanceToPlain(registerDto);
-
     return successResponse({
       res,
       message: "Job seeker registered",
-      data: { register: registerDto },
+      data: { register: registeredJobSeeker },
     });
   };
   registerEmployer = async (
@@ -41,15 +38,12 @@ export class AuthController {
     res: Response
   ) => {
     // Delegate to AuthService, passing the registration data and the specific role
-    const result = await this.authService.register(req.body, UserRole.EMPLOYER);
-
-    const registerDto = RegisterOutputDto.fromData(result);
-    // const plainData = instanceToPlain(registerDto);
+    const registeredEmployer = await this.authService.register(req.body, UserRole.EMPLOYER);
 
     return successResponse({
       res,
       message: "Employer registered",
-      data: { register: registerDto },
+      data: { register: registeredEmployer },
     });
   };
   registerAdmin = async (
@@ -57,15 +51,12 @@ export class AuthController {
     res: Response
   ) => {
     // Delegate to AuthService, passing the registration data and the specific role
-    const result = await this.authService.register(req.body, UserRole.ADMIN);
-
-    const registerDto = RegisterOutputDto.fromData(result);
-    // const plainData = instanceToPlain(registerDto);
+    const registeredAdmin = await this.authService.register(req.body, UserRole.ADMIN);
 
     return successResponse({
       res,
       message: "Admin registered",
-      data: { register: registerDto },
+      data: { register: registeredAdmin },
     });
   };
 
@@ -73,13 +64,10 @@ export class AuthController {
     // Delegate to AuthService to handle login logic (authentication, token generation)
     const result = await this.authService.login(req.body);
 
-    const loginOutputDto = LoginOutputDto.fromData(result.token);
-    // const plainData = instanceToPlain(loginOutputDto);
-
     return successResponse({
       res,
       message: "Login successful",
-      data: { login: loginOutputDto },
+      data: { login: result },
     });
   };
 

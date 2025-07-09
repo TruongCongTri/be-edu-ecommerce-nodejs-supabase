@@ -21,6 +21,30 @@ export class SkillService {
   // Repo is injected via constructor
   constructor(private skillRepo = skillRepository) {}
 
+  /**
+   * Private helper to fetch a Skill entity by its slug, including necessary relations for internal use.
+   * Throws AppError if not found.
+   * @param slug The slug of the skill.
+   * @param withRelations An optional object to specify relations to load.
+   * @returns The Skill entity.
+   */
+  private getSkillEntityBySlug = async (
+    slug: string,
+    withRelations?: { jobs?: boolean } // Define which relations can be loaded
+  ): Promise<Skill> => {
+    // --- BLOCK 1: Fetch Skill by slug and Handle Not Found ---
+    const skill = await this.skillRepo.findOne({
+      where: { slug },
+      relations: withRelations, // Dynamically load relations based on need
+    });
+    if (!skill) {
+      throw new AppError("Skill not found", 404);
+    }
+
+    // --- BLOCK 2: Return the Skill entity ---
+    return skill;
+  };
+
   // Get all skills - public access
   getAllSkills = async (
     queryParams: BaseQueryParamsDto
@@ -57,13 +81,6 @@ export class SkillService {
     const skillDtos = skills.map(SkillOutputDto.fromEntity);
 
     // --- BLOCK 5: Calculate and Create Pagination Metadata ---
-    // const total_page = Math.ceil(total / per_page!); // Use non-null assertion for per_page
-    // const paginationMeta = new PaginationMetaDto(
-    //   page!, // Use non-null assertion for page
-    //   per_page!, // Use non-null assertion for per_page
-    //   total,
-    //   total_page
-    // );
     const paginationMeta = createPaginationMeta(page!, per_page!, total);
 
     // --- BLOCK 6: Return Data and Pagination Metadata ---
@@ -103,13 +120,6 @@ export class SkillService {
     const skillDtos = skills.map(SkillOutputDto.fromEntity);
 
     // --- BLOCK 5: Calculate and Create Pagination Metadata ---
-    // const total_page = Math.ceil(total / per_page!); // Use non-null assertion for per_page
-    // const paginationMeta = new PaginationMetaDto(
-    //   page!, // Use non-null assertion for page
-    //   per_page!, // Use non-null assertion for per_page
-    //   total,
-    //   total_page
-    // );
     const paginationMeta = createPaginationMeta(page!, per_page!, total);
 
     // --- BLOCK 6: Return Data and Pagination Metadata ---
@@ -118,51 +128,71 @@ export class SkillService {
       pagination: paginationMeta,
     };
   };
+
   // Get single skill by slug - public access
-  getSkillBySlug = async (slug: string): Promise<Skill> => {
-    const skill = await this.skillRepo.findOne({
-      where: { slug },
-    });
-    if (!skill) throw new AppError("Skill not found", 404);
-    return skill;
+  getSkillBySlug = async (slug: string): Promise<SkillOutputDto> => {
+    // --- BLOCK 1: Call the private method to get the entity ---
+    const skill = await this.getSkillEntityBySlug(slug);
+
+    // --- BLOCK 2: Map Entities to DTOs ---
+    const skillDto = SkillOutputDto.fromEntity(skill);
+
+    // --- BLOCK 3: Return Data ---
+    return skillDto;
   };
+
   // Get single skill with its jobs by slug - public access
-  getSkillWithJobsBySlug = async (slug: string): Promise<Skill> => {
-    const skill = await this.skillRepo.findOne({
-      where: { slug },
-      relations: ["jobs"],
-    });
-    if (!skill) throw new AppError("Skill not found", 404);
-    return skill;
+  getSkillWithJobsBySlug = async (slug: string): Promise<SkillOutputDto> => {
+    // --- BLOCK 1: Call the private method to get the entity, ensuring 'jobs' relation is loaded ---
+    const skill = await this.getSkillEntityBySlug(slug, { jobs: true });
+
+    // --- BLOCK 2: Map Entities to DTOs ---
+    const skillDto = SkillOutputDto.fromEntity(skill);
+
+    // --- BLOCK 3: Return Data ---
+    return skillDto;
   };
 
   // Create new skill - restricted access for only admin
-  createSkill = async (dto: CreateSkillDto): Promise<Skill> => {
-    // 1. Perform content checks using the utility function
+  createSkill = async (dto: CreateSkillDto): Promise<SkillOutputDto> => {
+    // --- BLOCK 1: Call the private method to get the entity ---
     checkForbiddenWords([dto.name], "Skill");
 
-    // 2. Manual check for unique name before attempting to save
+    // --- BLOCK 2: Manual check for unique name before attempting to save ---
     const existing = await this.skillRepo.findOneBy({ name: dto.name });
     if (existing) throw new AppError("Skill already exists", 409);
 
+    // --- BLOCK 3: Create the entity instance ---
     const skillToCreate = this.skillRepo.create({
       ...dto,
       slug: slugify(dto.name),
     });
-    // 3. Save the new category to the database
-    return await this.skillRepo.save(skillToCreate);
+    // --- BLOCK 4: Save the new skill to the database
+    const createdSkill = await this.skillRepo.save(skillToCreate);
+
+    // --- BLOCK 5: Map Entities to DTOs ---
+    const skillDto = SkillOutputDto.fromEntity(createdSkill);
+
+    // --- BLOCK 6: Return Data ---
+    return skillDto;
   };
+
   // Update a skill - restricted access for only admin
-  updateSkill = async (slug: string, dto: UpdateSkillDto): Promise<Skill> => {
-    // 1. Find the skill to update by slug
-    // Calls getSkillBySlug which correctly handles 404
-    const skillToUpdate = await this.getSkillBySlug(slug);
-    if (!skillToUpdate) throw new AppError("Skill not found", 404);
+  updateSkill = async (
+    slug: string,
+    dto: UpdateSkillDto
+  ): Promise<SkillOutputDto> => {
+    // --- BLOCK 1: Fetch Skill with its jobs by slug and Handle Not Found ---
+    const skillToUpdate = await this.getSkillEntityBySlug(slug);
 
+    // --- BLOCK 2: Destructure body Parameters ---
     const { name } = dto;
-    console.log("Service - name: ", name);
 
-    // 2. Check for unique name conflict ONLY if the name is actually changing
+    // --- BLOCK 3: Perform content checks using the utility function ---
+    const nameToCheck = name !== undefined ? name : skillToUpdate.name;
+    checkForbiddenWords([nameToCheck], "Skill");
+
+    // --- BLOCK 4: Check for unique name conflict ONLY if the name is actually changing
     // This correctly avoids false positives if the name isn't being updated
     if (name !== undefined && name !== skillToUpdate.name) {
       // Explicitly check if 'name' is provided in DTO
@@ -171,34 +201,39 @@ export class SkillService {
       if (existing) throw new AppError("Skill already exists", 409); // Business logic error: Category name already exists
     }
 
-    // 3. Prepare texts for forbidden words check
-    // This is correctly getting the *effective* name and description after considering DTO updates.
-    const nameToCheck = name !== undefined ? name : skillToUpdate.name;
-    // ensuring checkForbiddenWords always receives a string.
-    checkForbiddenWords([nameToCheck], "Skill");
-
+    // --- BLOCK 5: Generate slug based on the new name if provided, otherwise keep the current slug
     let updatedSlug = skillToUpdate.slug; // Default to current slug
     if (name !== undefined && name !== skillToUpdate.name) {
       updatedSlug = slugify(name); // Use the NEW name to generate the slug
     }
 
-    // 4. Merge DTO into the existing category entity
+    // --- BLOCK 6: Merge DTO into the existing category entity
     this.skillRepo.merge(skillToUpdate, {
       ...dto,
       slug: updatedSlug, // Ensure the potentially new slug is merged
     });
 
-    // 5. Save the updated category
-    return await this.skillRepo.save(skillToUpdate);
+    // --- BLOCK 7: Save the new category to the database
+    const updatedSkill = await this.skillRepo.save(skillToUpdate);
+
+    // --- BLOCK 8: Map Entities to DTOs ---
+    const skillDto = SkillOutputDto.fromEntity(updatedSkill);
+
+    // --- BLOCK 9: Return Data ---
+    return skillDto;
   };
+
   // Delete a skill - restricted access for only admin
   deleteSkill = async (slug: string): Promise<void> => {
-    const skillToDelete = await this.getSkillWithJobsBySlug(slug);
+    // --- BLOCK 1: Call the private method to get the entity, ensuring 'jobs' relation is loaded ---
+    const skillToDelete = await this.getSkillEntityBySlug(slug, { jobs: true });
 
+    // --- BLOCK 2: Check if the skill has associated jobs ---
     if (skillToDelete.jobs && skillToDelete.jobs.length > 0) {
       throw new AppError("Cannot delete skill: It has associated jobs.", 400); // Or 409 Conflict
     }
 
+    // --- BLOCK 3: Delete the skill ---
     await this.skillRepo.remove(skillToDelete);
   };
 }

@@ -8,7 +8,6 @@ import { Category } from "../../database/entities/Category";
 import { slugify } from "../../../utils/helpers/slugify";
 import { AppError } from "../../../utils/errors/AppError";
 import { checkForbiddenWords } from "../../../utils/forbiddenWordsChecker";
-import { EntityNotFoundError } from "typeorm";
 import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
 import { PaginationMetaDto } from "../../database/dtos.output/PaginationMeta.dto";
 import { buildQueryOptions } from "../../../utils/buildQueryOptions";
@@ -21,6 +20,30 @@ export class CategoryService {
   // constructor() {}
   // Repo is injected via constructor
   constructor(private cateRepo = categoryRepository) {}
+
+  /**
+   * Private helper to fetch a Category entity by its slug, including necessary relations for internal use.
+   * Throws AppError if not found.
+   * @param slug The slug of the category.
+   * @param withRelations An optional object to specify relations to load.
+   * @returns The Category entity.
+   */
+  private getCategoryEntityBySlug = async (
+    slug: string,
+    withRelations?: { jobs?: boolean } // Define which relations can be loaded
+  ): Promise<Category> => {
+    // --- BLOCK 1: Fetch Category by slug and Handle Not Found ---
+    const category = await this.cateRepo.findOne({
+      where: { slug },
+      relations: withRelations, // Dynamically load relations based on need
+    });
+    if (!category) {
+      throw new AppError("Category not found", 404);
+    }
+
+    // --- BLOCK 2: Return the Category entity ---
+    return category;
+  };
 
   // Get all category - public access
   getAllCategories = async (
@@ -58,13 +81,6 @@ export class CategoryService {
     const categoryDtos = categories.map(CategoryOutputDto.fromEntity);
 
     // --- BLOCK 5: Calculate and Create Pagination Metadata ---
-    // const total_page = Math.ceil(total / per_page!); // Use non-null assertion for per_page
-    // const paginationMeta = new PaginationMetaDto(
-    //   page!, // Use non-null assertion for page
-    //   per_page!, // Use non-null assertion for per_page
-    //   total,
-    //   total_page
-    // );
     const paginationMeta = createPaginationMeta(page!, per_page!, total);
 
     // --- BLOCK 6: Return Data and Pagination Metadata ---
@@ -117,82 +133,70 @@ export class CategoryService {
       pagination: paginationMeta,
     };
   };
+
   // Get single category by slug - public access
-  getCategoryBySlug = async (slug: string): Promise<Category> => {
-    try {
-      const cate = await this.cateRepo.findOneOrFail({
-        where: { slug },
-      });
-      return cate;
-    } catch (error) {
-      if (error instanceof EntityNotFoundError) {
-        throw new AppError(`Category with Slug ${slug} not found.`, 404);
-      }
-      throw error;
-    }
+  getCategoryBySlug = async (slug: string): Promise<CategoryOutputDto> => {
+    // --- BLOCK 1: Call the private method to get the entity ---
+    const category = await this.getCategoryEntityBySlug(slug);
+
+    // --- BLOCK 2: Map Entities to DTOs ---
+    const categoryDto = CategoryOutputDto.fromEntity(category);
+
+    // --- BLOCK 3: Return Data ---
+    return categoryDto;
   };
   // Get single category with its jobs by slug - public access
-  getCategoryWithJobsBySlug = async (slug: string): Promise<Category> => {
-    try {
-      const cate = await this.cateRepo.findOneOrFail({
-        where: { slug },
-        relations: ["jobs"],
-      });
-      return cate;
-    } catch (error) {
-      if (error instanceof EntityNotFoundError) {
-        throw new AppError(`Category with Slug ${slug} not found.`, 404);
-      }
-      throw error;
-    }
+  getCategoryWithJobsBySlug = async (
+    slug: string
+  ): Promise<CategoryOutputDto> => {
+    // --- BLOCK 1: Call the private method to get the entity, ensuring 'jobs' relation is loaded ---
+    const category = await this.getCategoryEntityBySlug(slug, { jobs: true });
+
+    // --- BLOCK 2: Map Entities to DTOs ---
+    const categoryDto = CategoryOutputDto.fromEntity(category);
+
+    // --- BLOCK 3: Return Data ---
+    return categoryDto;
   };
 
   // Create new category - restricted access for only admin
-  createCategory = async (dto: CreateCategoryDto): Promise<Category> => {
-    // 1. Perform content checks using the utility function
+  createCategory = async (
+    dto: CreateCategoryDto
+  ): Promise<CategoryOutputDto> => {
+    // --- BLOCK 1: Call the private method to get the entity ---
     checkForbiddenWords([dto.name, dto.description || ""], "Category");
 
-    // 2. Manual check for unique name before attempting to save
+    // --- BLOCK 2: Manual check for unique name before attempting to save ---
     const existing = await this.cateRepo.findOneBy({ name: dto.name });
     if (existing) throw new AppError("Category already exists", 409);
 
-    // 3.
-    const generatedSlug = slugify(dto.name);
-    const existingSlug = await this.cateRepo.findOneBy({ slug: generatedSlug });
-    if (existingSlug) {
-      throw new AppError("Category slug already exists", 409);
-    }
-
-    // 3. Create the entity instance with slug generated from name
+    // --- BLOCK 3: Create the entity instance ---
     const cateToCreate = this.cateRepo.create({
       ...dto,
-      slug: generatedSlug,
+      slug: slugify(dto.name),
     });
 
-    // 4. Save the new category to the database
-    return await this.cateRepo.save(cateToCreate);
+    // --- BLOCK 4: Save the new category to the database ---
+    const createdCategory = await this.cateRepo.save(cateToCreate);
+
+    // --- BLOCK 5: Map Entities to DTOs ---
+    const categoryDto = CategoryOutputDto.fromEntity(createdCategory);
+
+    // --- BLOCK 6: Return Data ---
+    return categoryDto;
   };
   // Update a category - restricted access for only admin
   updateCategory = async (
     slug: string,
     dto: UpdateCategoryDto
-  ): Promise<Category> => {
-    // 1. Find the category to update by slug
-    // Calls getCategoryBySlug which correctly handles 404
-    const cateToUpdate = await this.getCategoryBySlug(slug);
+  ): Promise<CategoryOutputDto> => {
+    // --- BLOCK 1: Fetch Skill with its jobs by slug and Handle Not Found ---
+    const cateToUpdate = await this.getCategoryEntityBySlug(slug);
 
+    // --- BLOCK 2: Destructure body Parameters ---
     const { name, description } = dto;
 
-    // 2. Check for unique name conflict ONLY if the name is actually changing
-    // This correctly avoids false positives if the name isn't being updated
-    if (name !== undefined && name !== cateToUpdate.name) {
-      // Explicitly check if 'name' is provided in DTO
-      // Ensure 'name' is provided in DTO AND it's different
-      const existing = await this.cateRepo.findOneBy({ name });
-      if (existing) throw new AppError("Category already exists", 409); // Business logic error: Category name already exists
-    }
-
-    // 3. Prepare texts for forbidden words check
+    // --- BLOCK 3: Perform content checks using the utility function ---
     // This is correctly getting the *effective* name and description after considering DTO updates.
     const nameToCheck = name !== undefined ? name : cateToUpdate.name;
     const descriptionToCheck =
@@ -201,25 +205,45 @@ export class CategoryService {
     // ensuring checkForbiddenWords always receives a string.
     checkForbiddenWords([nameToCheck, descriptionToCheck || ""], "Category");
 
+    // --- BLOCK 4: Check for unique name conflict ONLY if the name is actually changing
+    // This correctly avoids false positives if the name isn't being updated
+    if (name !== undefined && name !== cateToUpdate.name) {
+      // Explicitly check if 'name' is provided in DTO
+      // Ensure 'name' is provided in DTO AND it's different
+      const existing = await this.cateRepo.findOneBy({ name });
+      if (existing) throw new AppError("Category already exists", 409); // Business logic error: Category name already exists
+    }
+
+    // --- BLOCK 5: Generate slug based on the new name if provided, otherwise keep the current slug
     let updatedSlug = cateToUpdate.slug; // Default to current slug
     if (name !== undefined && name !== cateToUpdate.name) {
       updatedSlug = slugify(name); // Use the NEW name to generate the slug
     }
-    // 4. Merge DTO into the existing category entity
+
+    // --- BLOCK 6: Merge DTO into the existing category entity
     this.cateRepo.merge(cateToUpdate, {
       ...dto,
       slug: updatedSlug, // Ensure the potentially new slug is merged
     });
 
-    // 5. Save the updated category
-    // This will trigger the database unique constraint check as a final safeguard
-    // if a race condition occurred between the findOneBy and save.
-    return await this.cateRepo.save(cateToUpdate);
+    // --- BLOCK 7: Save the new category to the database
+    const updatedCategory = await this.cateRepo.save(cateToUpdate);
+
+    // --- BLOCK 8: Map Entities to DTOs ---
+    const categoryDto = CategoryOutputDto.fromEntity(updatedCategory);
+
+    // --- BLOCK 9: Return Data ---
+    return categoryDto;
   };
+
   // Delete a category - restricted access for only admin
   deleteCategory = async (slug: string): Promise<void> => {
-    const cateToDelete = await this.getCategoryWithJobsBySlug(slug);
+    // --- BLOCK 1: Call the private method to get the entity, ensuring 'jobs' relation is loaded ---
+    const cateToDelete = await this.getCategoryEntityBySlug(slug, {
+      jobs: true,
+    });
 
+    // --- BLOCK 2: Check if the category has associated jobs ---
     if (cateToDelete.jobs && cateToDelete.jobs.length > 0) {
       throw new AppError(
         "Cannot delete category: It has associated jobs.",
@@ -227,6 +251,7 @@ export class CategoryService {
       ); // Or 409 Conflict
     }
 
+    // --- BLOCK 3: Delete the skill ---
     await this.cateRepo.remove(cateToDelete);
   };
 }

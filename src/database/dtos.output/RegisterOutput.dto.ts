@@ -14,7 +14,7 @@ export class RegisterOutputDto {
     Object.assign(this, partial);
   }
 
-  static fromData(user: User): RegisterOutputDto {
+  static fromEntity(user: User): RegisterOutputDto {
     return new RegisterOutputDto({
       fullName: user.fullName,
       email: user.email,

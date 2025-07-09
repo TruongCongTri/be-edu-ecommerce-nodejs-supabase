@@ -16,22 +16,6 @@ export class ApplicationController {
     this.appService = appService;
   }
 
-  // getMyApplications = async (req: AuthenticatedRequest, res: Response) => {
-  //   const userId = req.user!.id;
-  //   const role = req.user!.role;
-
-  //   const data =
-  //     role === "job_seeker"
-  //       ? await this.appService.getApplicationsForJobSeeker(userId)
-  //       : await this.appService.getApplicationsForEmployer(userId);
-
-  //   return successResponse({
-  //     res,
-  //     message: "Applications fetched successfully",
-  //     data: { applications: instanceToPlain(data) },
-  //   });
-  // };
-
   // job seeker specific methods
   createApplication = async (
     req: AuthenticatedRequest<{}, {}, CreateApplicationDto>,
@@ -132,7 +116,11 @@ export class ApplicationController {
     // Delegate to ApplicationService to fetch applications for this specific job
     // This service method will also handle authorization (ensuring the job belongs to the employer)
     const { applications, pagination } =
-      await this.appService.getApplicationsForJobForEmployer(userId, jobId, queryParams);
+      await this.appService.getApplicationsForJobForEmployer(
+        userId,
+        jobId,
+        queryParams
+      );
     // const plainData = instanceToPlain(applications);
 
     return successResponse({

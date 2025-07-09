@@ -43,7 +43,11 @@ import { JobFilterParams } from "../../database/dtos/JobFilterParams.dto";
 import { Job } from "../../database/entities/Job";
 import { Category } from "../../database/entities/Category";
 import { Skill } from "../../database/entities/Skill";
+import { Location } from "../../database/entities/Location";
 import { Employer } from "../../database/entities/Employer";
+import { JobPartialOutputDto } from "../../database/dtos.output/JobPartialOutput.dto";
+import { JobOutputDto } from "../../database/dtos.output/JobOutput.dto";
+import { DEFAULT_PAGE, DEFAULT_PER_PAGE } from "../../../constants/enum";
 
 interface JobFilterResult {
   data: {
@@ -86,142 +90,93 @@ export class JobService {
     this.locationRepo = locationRepo;
     this.employerRepo = employerRepo;
   }
+
+  // --- Private Helper Methods (Internal Entity Fetching & Validation) ---
+
+  /**
+   * Fetches a Job entity by slug, optionally with specified relations.
+   * Throws AppError if the job is not found.
+   */
+  private async getJobEntityBySlug(
+    slug: string,
+    relations: string[] = []
+  ): Promise<Job> {
+    const job = await this.jobRepo.findOneOrFail({
+      where: { slug },
+      relations,
+    });
+    if (!job) {
+      throw new AppError(`Job with Slug '${slug}' not found.`, 404);
+    }
+
+    return job;
+  }
+
+  /**
+   * Fetches a Category entity by ID. Throws AppError if not found.
+   */
+  private async getCategoryEntity(categoryId: string): Promise<Category> {
+    const category = await this.cateRepo.findOneBy({ id: categoryId });
+    if (!category) {
+      throw new AppError(`Category with ID '${categoryId}' not found.`, 404);
+    }
+    return category;
+  }
+
+  /**
+   * Fetches Skill entities by IDs. Throws AppError if any ID is invalid.
+   */
+  private async getSkillEntities(skillIds: string[]): Promise<Skill[]> {
+    if (!skillIds || skillIds.length === 0) {
+      return [];
+    }
+    const skills = await this.skillRepo.findBy({ id: In(skillIds) });
+    if (skills.length !== skillIds.length) {
+      throw new AppError("One or more provided skill IDs are invalid.", 400);
+    }
+    return skills;
+  }
+
+  /**
+   * Fetches Location entities by IDs. Throws AppError if any ID is invalid.
+   */
+  private async getLocationEntities(
+    locationIds: string[]
+  ): Promise<Location[]> {
+    if (!locationIds || locationIds.length === 0) {
+      return [];
+    }
+    const locations = await this.locationRepo.findBy({ id: In(locationIds) });
+    if (locations.length !== locationIds.length) {
+      throw new AppError("One or more provided location IDs are invalid.", 400);
+    }
+    return locations;
+  }
+
+  private async getEmployerEntityByUserId(userId: string): Promise<Employer> {
+    // ... (implementation as before) ...
+    const employer = await this.employerRepo.findOne({
+      where: { user: { id: userId } },
+      relations: ["user"],
+    });
+    if (!employer) {
+      throw new AppError(
+        "Only registered employers can post or manage jobs.",
+        403
+      );
+    }
+    return employer;
+  }
+
+  // --- Public Methods (Return DTOs, use private helpers) ---
+
   // Filtration logic for jobs
-  // getAllFilteredJobs = async (
-  //   filter: JobFilterParams
-  // ): Promise<JobFilterResult> => {
-  //   const {
-  //     page = 1,
-  //     per_page = 10,
-  //     search,
-  //     categoryId,
-  //     skillIds,
-  //     locationIds,
-  //     salaryMin,
-  //     salaryMax,
-  //   } = filter;
-
-  //   const skip = (page - 1) * per_page;
-
-  //   // CASE 1: If skillIds or locationIds present, fallback to QueryBuilder
-  //   if (skillIds?.length || locationIds?.length) {
-  //     const qb = this.jobRepo
-  //       .createQueryBuilder("job")
-  //       .leftJoinAndSelect("job.skills", "skill")
-  //       .leftJoinAndSelect("job.locations", "location")
-  //       .leftJoinAndSelect("job.category", "category")
-  //       .leftJoinAndSelect("job.employer", "employer")
-  //       .where("job.isActive = true");
-
-  //     if (search) {
-  //       qb.andWhere(
-  //         "(job.title ILIKE :search OR job.description ILIKE :search)",
-  //         { search: `%${search}%` }
-  //       );
-  //     }
-
-  //     if (categoryId) {
-  //       qb.andWhere("category.id = :categoryId", { categoryId });
-  //     }
-
-  //     if (salaryMin !== undefined) {
-  //       qb.andWhere("job.salaryMin >= :salaryMin", { salaryMin });
-  //     }
-
-  //     if (salaryMax !== undefined) {
-  //       qb.andWhere("job.salaryMax <= :salaryMax", { salaryMax });
-  //     }
-
-  //     if (skillIds?.length) {
-  //       qb.andWhere(
-  //         `job.id IN (
-  //         SELECT js.job_id FROM jobs_skills js
-  //         WHERE js.skill_id IN (:...skillIds)
-  //       )`,
-  //         { skillIds }
-  //       );
-  //     }
-
-  //     if (locationIds?.length) {
-  //       qb.andWhere(
-  //         `job.id IN (
-  //         SELECT jl.job_id FROM jobs_locations jl
-  //         WHERE jl.location_id IN (:...locationIds)
-  //       )`,
-  //         { locationIds }
-  //       );
-  //     }
-
-  //     const [jobs, total] = await qb
-  //       .skip(skip)
-  //       .take(per_page)
-  //       .orderBy("job.createdAt", "DESC")
-  //       .getManyAndCount();
-
-  //     return {
-  //       data: { jobs },
-  //       pagination: {
-  //         current_page: page,
-  //         per_page,
-  //         total,
-  //         total_page: Math.ceil(total / per_page),
-  //       },
-  //     };
-  //   }
-
-  //   // CASE 2: Use simple repository .find() when no skill/location filters
-  //   const where: FindOptionsWhere<Job> = {
-  //     isActive: true,
-  //     ...(search && {
-  //       // match title or description
-  //       title: ILike(`%${search}%`),
-  //     }),
-  //     ...(categoryId && {
-  //       category: { id: categoryId },
-  //     }),
-  //     ...(salaryMin !== undefined && {
-  //       salaryMin: MoreThanOrEqual(salaryMin),
-  //     }),
-  //     ...(salaryMax !== undefined && {
-  //       salaryMax: LessThanOrEqual(salaryMax),
-  //     }),
-  //   };
-
-  //   const [jobs, total] = await this.jobRepo.findAndCount({
-  //     where: [
-  //       where,
-  //       ...(search
-  //         ? [
-  //             {
-  //               ...where,
-  //               description: ILike(`%${search}%`),
-  //               title: undefined, // prevent conflict if both present
-  //             },
-  //           ]
-  //         : []),
-  //     ],
-  //     relations: ["skills", "locations", "category", "employer"],
-  //     order: { createdAt: "DESC" },
-  //     skip,
-  //     take: per_page,
-  //   });
-
-  //   return {
-  //     data: { jobs },
-  //     pagination: {
-  //       current_page: page,
-  //       per_page,
-  //       total,
-  //       total_page: Math.ceil(total / per_page),
-  //     },
-  //   };
-  // };
   getAllFilteredJobs = async (
     filter: JobFilterParams
   ): Promise<JobFilterResult> => {
     const {
-      page = 1,
-      per_page = 10,
+      page = DEFAULT_PAGE,
+      per_page = DEFAULT_PER_PAGE,
       search,
       categoryId,
       skillIds,
@@ -324,8 +279,8 @@ export class JobService {
   ): Promise<JobFilterResult> => {
     // Return type now matches JobFilterResult
     const {
-      page = 1,
-      per_page = 10,
+      page = DEFAULT_PAGE,
+      per_page = DEFAULT_PER_PAGE,
       search,
       categoryId,
       skillIds,
@@ -422,268 +377,120 @@ export class JobService {
     };
   };
 
-  // Fetch all jobs without any filters
-  getAllJobs = async (): Promise<Job[]> => {
-    return this.jobRepo.find({
+  /**
+   * Retrieves a list of all jobs with partial details.
+   * @returns A promise resolving to an array of `JobPartialOutputDto`.
+   */
+  getAllJobs = async (): Promise<JobPartialOutputDto[]> => {
+    // Fetch entities without relations for partial view
+    const jobs = await this.jobRepo.find({
       order: { createdAt: "DESC" },
     });
+
+    const jobDtos = jobs.map(JobPartialOutputDto.fromEntity);
+
+    return jobDtos;
   };
-  getAllJobDetails = async (): Promise<Job[]> => {
-    return this.jobRepo.find({
+  getAllJobDetails = async (): Promise<JobOutputDto[]> => {
+    // Fetch entities with all necessary relations for full details
+    const jobs = await this.jobRepo.find({
       relations: ["employer", "category", "skills", "locations"],
       order: { createdAt: "DESC" },
     });
+
+    const jobDtos = jobs.map(JobOutputDto.fromEntity);
+
+    return jobDtos;
   };
 
-  // no use
-  getAllFilteredJobsVerTwo = async (
-    filter: JobFilterParams
-  ): Promise<JobFilterResult> => {
-    const {
-      page = 1,
-      per_page = 10,
-      search,
-      categoryId,
-      skillIds,
-      locationIds,
-      salaryMin,
-      salaryMax,
-    } = filter;
+  /**
+   * Retrieves the full details of a single job by its slug.
+   * This method replaces the previous 'getJobBySlug' and 'getJobDetailBySlug'
+   * to consistently return a detailed DTO.
+   * @param slug The slug of the job to retrieve.
+   * @returns A promise resolving to a `JobOutputDto`.
+   */
+  getJobBySlug = async (slug: string): Promise<JobPartialOutputDto> => {
+    // Use private helper to fetch the job entity with all relations
+    const job = await this.getJobEntityBySlug(slug);
 
-    const where: FindManyOptions<Job>["where"] = {
-      isActive: true,
-    };
+    const jobDto = JobPartialOutputDto.fromEntity(job);
 
-    // 🔍 Search by title or description
-    if (search) {
-      where["title"] = ILike(`%${search}%`);
-      where["description"] = ILike(`%${search}%`);
-    }
-
-    // 📂 Filter by category
-    if (categoryId) {
-      where["category"] = { id: categoryId };
-    }
-
-    // 💰 Salary filter
-    if (salaryMin !== undefined || salaryMax !== undefined) {
-      where["salaryMin"] = salaryMin;
-      where["salaryMax"] = salaryMax;
-    }
-
-    const skip = (page - 1) * per_page;
-    const findOptions: FindManyOptions<Job> = {
-      where,
-      relations: ["skills", "locations", "category", "employer"],
-      skip,
-      take: per_page,
-      order: { createdAt: "DESC" },
-    };
-
-    // 🧠 Filter by skills and 📍 locations — post-query filtering
-    let jobs = await this.jobRepo.find(findOptions);
-
-    // 🧠 Filter skills (at least one match)
-    if (skillIds?.length) {
-      jobs = jobs.filter((job) =>
-        job.skills.some((skill) => skillIds.includes(skill.id))
-      );
-    }
-
-    // 📍 Filter locations (at least one match)
-    if (locationIds?.length) {
-      jobs = jobs.filter((job) =>
-        job.locations.some((loc) => locationIds.includes(loc.id))
-      );
-    }
-
-    const total = jobs.length;
-    const paginated = jobs.slice(0, per_page); // in case filtering removed items
-
-    return {
-      data: { jobs: paginated },
-      pagination: {
-        current_page: page,
-        per_page,
-        total,
-        total_page: Math.ceil(total / per_page),
-      },
-    };
+    return jobDto;
   };
-  jobFilter = async (filter: JobFilterParams): Promise<JobFilterResult> => {
-    const {
-      page = 1,
-      per_page = 10,
-      search,
-      categoryId,
-      skillIds,
-      locationIds,
-      salaryMin,
-      salaryMax,
-    } = filter; // Destructure filter params and apply default pagination if not provided
+  /**
+   * Updates an existing job posting.
+   * @param slug The slug of the job to update.
+   * @param dto The data for updating the job.
+   * @param employerId The ID of the authenticated employer.
+   * @returns A promise resolving to the updated `JobOutputDto`.
+   */
+  getJobDetailBySlug = async (slug: string): Promise<JobOutputDto> => {
+    // Use private helper to fetch the job entity with all relations
+    const job = await this.getJobEntityBySlug(slug, [
+      "employer",
+      "category",
+      "skills",
+      "locations",
+    ]);
 
-    const skip = (page - 1) * per_page;
+    const jobDto = JobOutputDto.fromEntity(job);
 
-    // Step 1: Use repository `find` with where conditions for basic filters
-    const where: FindOptionsWhere<Job> = {
-      isActive: true,
-      ...(categoryId ? { category: { id: categoryId } } : {}), // Exact match	- FindOptionsWhere
-      ...(salaryMin !== undefined
-        ? { salaryMin: MoreThanOrEqual(salaryMin) }
-        : {}), // within range - MoreThanOrEqual
-      ...(salaryMax !== undefined
-        ? { salaryMax: LessThanOrEqual(salaryMax) }
-        : {}), // within range - LessThanOrEqual
-    };
-
-    let jobs = await this.jobRepo.find({
-      where,
-      relations: ["skills", "locations", "category", "employer"],
-      order: { createdAt: "DESC" },
-      skip: (page - 1) * per_page,
-      take: per_page,
-    });
-
-    // Step 2: Filter in-memory for search (title/description)
-    if (search) {
-      const lowerSearch = search.toLowerCase();
-      jobs = jobs.filter(
-        (job) =>
-          job.title.toLowerCase().includes(lowerSearch) ||
-          job.description.toLowerCase().includes(lowerSearch)
-      );
-    }
-
-    // Step 3: Use queryBuilder only for skill/location ANY MATCH
-    if (skillIds?.length || locationIds?.length) {
-      const builder = this.jobRepo.createQueryBuilder("job").select("job.id");
-
-      if (skillIds?.length) {
-        builder.andWhere(
-          `job.id IN (
-            SELECT js.job_id FROM jobs_skills js WHERE js.skill_id IN (:...skillIds)
-          )`,
-          { skillIds }
-        );
-      }
-      if (locationIds?.length) {
-        builder.andWhere(
-          `job.id IN (
-            SELECT jl.job_id FROM jobs_locations jl WHERE jl.location_id IN (:...locationIds)
-          )`,
-          { locationIds }
-        );
-      }
-
-      const matchingJobIds = (await builder.getMany()).map((j) => j.id);
-
-      jobs = jobs.filter((job) => matchingJobIds.includes(job.id));
-    }
-
-    const total = jobs.length;
-    const paginatedJobs = jobs.slice(skip, skip + per_page);
-    console.log("number of current jobs: ", paginatedJobs.length);
-
-    return {
-      data: { jobs: paginatedJobs },
-      pagination: {
-        current_page: page,
-        per_page,
-        total,
-        total_page: Math.ceil(total / per_page),
-      },
-    };
+    return jobDto;
   };
 
-  getJobBySlug = async (slug: string): Promise<Job> => {
-    try {
-      const job = await this.jobRepo.findOneOrFail({
-        where: { slug },
-      });
-      return job;
-    } catch (error) {
-      if (error instanceof EntityNotFoundError) {
-        throw new AppError(`Job with Slug ${slug} not found.`, 404);
-      }
-      throw error;
-    }
-  };
-  getJobDetailBySlug = async (slug: string): Promise<Job> => {
-    const job = await this.jobRepo.findOne({
-      where: { slug },
-      relations: ["employer", "category", "skills", "locations"],
-    });
-    if (!job) throw new AppError("Job not found");
-    return job;
-  };
+  createJob = async (
+    dto: CreateJobDto,
+    userId: string
+  ): Promise<JobOutputDto> => {
+    // 1. Fetch related entities using private helpers
+    const category = await this.getCategoryEntity(dto.categoryId);
+    const skills = await this.getSkillEntities(dto.skillIds);
+    const locations = await this.getLocationEntities(dto.locationIds);
+    const employer = await this.getEmployerEntityByUserId(userId);
 
-  createJob = async (dto: CreateJobDto, userId: string): Promise<Job> => {
-    // 1. Validate and fetch Category
-    const category = await this.cateRepo.findOneBy({
-      id: dto.categoryId,
-    });
-    if (!category) throw new AppError("Category not found", 404);
-
-    // 2. Validate and fetch Skills
-    // Ensure skillIds array is not empty before querying, though DTO validation handles ArrayNotEmpty.
-    const skills = dto.skillIds?.length > 0 ? await this.skillRepo.findBy({ id: In(dto.skillIds) }) : [];
-    // Optional: Check if all provided skill IDs actually exist in the database
-    if (skills.length !== dto.skillIds?.length) {
-      // You could be more specific here and list which IDs were not found
-      throw new AppError("One or more provided skill IDs are invalid.", 400);
-    }
-
-    // 3. Validate and fetch Locations
-    const locations = dto.locationIds?.length > 0 ? await this.locationRepo.findBy({ id: In(dto.locationIds) }) : [];
-    // Optional: Check if all provided location IDs actually exist in the database
-    if (locations.length !== dto.locationIds?.length) {
-      throw new AppError("One or more provided location IDs are invalid.", 400);
-    }
-
-    // 4. Fetch Employer based on authenticated userId
-    const employer = await this.employerRepo.findOne({
-      where: { user: { id: userId } }, // Assuming Employer entity has a ManyToOne relation to User, and User has an 'id'
-      relations: ["user"], // Load the user relation to filter by user.id
-    });
-    if (!employer) {
-      // This case should ideally not happen if authorizeMiddleware is correctly set up,
-      // but it's a good safety check if the user role mapping to employer is complex.
-      throw new AppError("Only registered employers can post jobs.", 403);
-    }
-    
     // 5. Create the Job entity
     const jobToCreate = this.jobRepo.create({
       ...dto, // Spread all properties from the DTO
       slug: slugify(dto.title), // Generate slug from title
-      employer,  // Assign the fetched Employer entity
-      category,  // Assign the fetched Category entity
-      skills,    // Assign the fetched Skill entities
+      employer, // Assign the fetched Employer entity
+      category, // Assign the fetched Category entity
+      skills, // Assign the fetched Skill entities
       locations, // Assign the fetched Location entities
       postedAt: new Date(), // Set creation date
-      isActive: true,       // Default to active
+      isActive: true, // Default to active
       // expiresAt: // Optionally calculate based on config or dto input
     });
 
     // 6. Save the job to the database
     const newJob = await this.jobRepo.save(jobToCreate);
 
+    const fullNewJob = await this.getJobEntityBySlug(newJob.slug, [
+      "employer",
+      "category",
+      "skills",
+      "locations",
+    ]);
+
+    const jobDto = JobOutputDto.fromEntity(fullNewJob);
     // After saving, reload the job with all relations if JobOutputDto needs them
     // The `save` method might not return all relations pre-loaded.
     // If JobOutputDto expects nested relation data, you might need a `findOne` call here.
-    return await this.jobRepo.findOne({
-      where: { id: newJob.id },
-      relations: ["employer", "category", "skills", "locations", "user"], // Add any relations needed for JobOutputDto
-    }) as Job; // Type assertion as findOne might return null if not found (though unlikely after save)
+    return jobDto;
   };
 
   updateJob = async (
     slug: string,
     dto: UpdateJobDto,
     employerId: string
-  ): Promise<Job> => {
-    // 1. Find the job to update.
-    // getJobBySlug already handles not-found error and eager-loads relations (including employer).
-    const jobToUpdate = await this.getJobBySlug(slug);
+  ): Promise<JobOutputDto> => {
+    // 1. Find the job to update with necessary relations for ownership check and current values
+    const jobToUpdate = await this.getJobEntityBySlug(slug, [
+      "employer",
+      "category",
+      "skills",
+      "locations",
+    ]);
 
     // 2. Ownership check: Ensure the authenticated employer owns this job.
     // The employer relation on jobToUpdate should be loaded by getJobBySlug.
@@ -691,42 +498,25 @@ export class JobService {
       throw new AppError("Forbidden: You do not own this job.", 403); // Added 403 status
     }
 
-   // 3. Update Category if provided in DTO
+    // 3. Update Category if provided in DTO
     let category: Category = jobToUpdate.category; // Default to existing category
     if (dto.categoryId && dto.categoryId !== jobToUpdate.category.id) {
-      const newCategory = await this.cateRepo.findOneBy({ id: dto.categoryId });
-      if (!newCategory) {
-        // If the new category ID doesn't exist, throw an error
-        throw new AppError("Provided category not found.", 404);
-      }
-      category = newCategory; // Assign the fetched Category instance
+      category = await this.getCategoryEntity(dto.categoryId);
     }
     // If dto.categoryId is undefined or the same as existing, 'category' remains 'jobToUpdate.category'
-    
+
     // 4. Update Skills if provided in DTO
     let skills = jobToUpdate.skills; // Default to existing skills
-    if (dto.skillIds !== undefined) { // Check if skillIds array is explicitly provided (even if empty)
-      if (dto.skillIds.length > 0) {
-        skills = await this.skillRepo.findBy({ id: In(dto.skillIds) });
-        if (skills.length !== dto.skillIds.length) {
-          throw new AppError("One or more provided skill IDs are invalid.", 400);
-        }
-      } else {
-        skills = []; // If empty array is provided, clear all skills
-      }
+    if (dto.skillIds !== undefined) {
+      // Check if skillIds array is explicitly provided (even if empty)
+      skills = await this.getSkillEntities(dto.skillIds);
     }
 
     // 5. Update Locations if provided in DTO
     let locations = jobToUpdate.locations; // Default to existing locations
-    if (dto.locationIds !== undefined) { // Check if locationIds array is explicitly provided (even if empty)
-      if (dto.locationIds.length > 0) {
-        locations = await this.locationRepo.findBy({ id: In(dto.locationIds) });
-        if (locations.length !== dto.locationIds.length) {
-          throw new AppError("One or more provided location IDs are invalid.", 400);
-        }
-      } else {
-        locations = []; // If empty array is provided, clear all locations
-      }
+    if (dto.locationIds !== undefined) {
+      // Check if locationIds array is explicitly provided (even if empty)
+      locations = await this.getLocationEntities(dto.locationIds);
     }
 
     // 6. Apply scalar updates (only if property exists in DTO)
@@ -746,7 +536,7 @@ export class JobService {
 
     // Update slug if title changed
     if (dto.title && dto.title !== jobToUpdate.title) {
-        jobToUpdate.slug = slugify(dto.title);
+      jobToUpdate.slug = slugify(dto.title);
     }
 
     // 7. Assign updated relations
@@ -757,21 +547,31 @@ export class JobService {
     // 8. Save the updated job
     const updatedJob = await this.jobRepo.save(jobToUpdate);
 
+    const fullUpdatedJob = await this.getJobEntityBySlug(updatedJob.slug, [
+      "employer",
+      "category",
+      "skills",
+      "locations",
+    ]);
+
+    const jobDto = JobOutputDto.fromEntity(fullUpdatedJob);
     // 9. Return the job with all relations reloaded for the response DTO
-    return await this.jobRepo.findOne({
-      where: { id: updatedJob.id },
-      relations: ["employer", "category", "skills", "locations", "applications"], // Include all relations needed by JobOutputDto
-    }) as Job;
+    return jobDto;
   };
 
+  /**
+   * Deletes a job posting.
+   * @param slug The slug of the job to delete.
+   * @param employerId The ID of the authenticated employer.
+   * @returns A promise resolving to void.
+   */
   deleteJob = async (slug: string, employerId: string): Promise<void> => {
-    // 1. Find the job to delete.
-    const jobToDelete = await this.getJobBySlug(slug);
+    // 1. Find the job to delete with employer relation for ownership check
+    const jobToDelete = await this.getJobEntityBySlug(slug, ["employer"]);
 
     // 2. Ownership check: Ensure the authenticated employer owns this job.
-    if (jobToDelete.employer.id !== employerId) 
+    if (jobToDelete.employer.id !== employerId)
       throw new AppError("Forbidden: You do not own this job.", 403);
-    
 
     // 3. Remove the job from the database.
     await this.jobRepo.remove(jobToDelete);

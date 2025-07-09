@@ -62,25 +62,25 @@ export class JobController {
   getAllJobs = async (req: Request, res: Response) => {
     const jobs = await this.jobService.getAllJobs();
 
-    const jobDtos = jobs.map(JobPartialOutputDto.fromEntity);
-    const plainData = instanceToPlain(jobDtos);
+    // const jobDtos = jobs.map(JobPartialOutputDto.fromEntity);
+    // const plainData = instanceToPlain(jobDtos);
 
     return successResponse({
       res,
       message: "Jobs fetched successfully",
-      data: { jobs: plainData },
+      data: { jobs: jobs },
     });
   };
   getAllJobDetails = async (req: Request, res: Response) => {
     const jobs = await this.jobService.getAllJobDetails();
 
-    const jobDtos = jobs.map(JobOutputDto.fromEntity);
+    // const jobDtos = jobs.map(JobOutputDto.fromEntity);
     // const plainData = instanceToPlain(jobDtos);
 
     return successResponse({
       res,
       message: "Job details fetched successfully",
-      data: { jobs: jobDtos },
+      data: { jobs: jobs },
     });
   };
 
@@ -89,28 +89,21 @@ export class JobController {
 
     const job = await this.jobService.getJobBySlug(slug);
 
-    const jobDto = JobPartialOutputDto.fromEntity(job);
-    // const plainData = instanceToPlain(jobDto);
-
     return successResponse({
       res,
       message: "Job detail",
-      data: { job: jobDto },
+      data: { job: job },
     });
   };
   getJobDetailBySlug = async (req: Request, res: Response) => {
     const { slug } = req.params;
 
-    const job = await this.jobService.getJobDetailBySlug(slug);
-    // console.log(job);
-
-    const jobDto = JobOutputDto.fromEntity(job);
-    // const plainData = instanceToPlain(jobDto);
+    const jobDetail = await this.jobService.getJobDetailBySlug(slug);
 
     return successResponse({
       res,
       message: "Job detail",
-      data: { job: jobDto },
+      data: { job: jobDetail },
     });
   };
 
@@ -120,16 +113,13 @@ export class JobController {
   ) => {
     const employerId = req.user!.id;
 
-    const job = await this.jobService.createJob(req.body, employerId);
-
-    const jobDto = JobOutputDto.fromEntity(job);
-    // const plainData = instanceToPlain(jobDto);
+    const createdJob = await this.jobService.createJob(req.body, employerId);
 
     return successResponse({
       res,
       statusCode: 201,
       message: "Job created successfully",
-      data: { job: jobDto },
+      data: { job: createdJob },
     });
   };
   updateJob = async (
@@ -139,15 +129,12 @@ export class JobController {
     const { slug } = req.params;
     const employerId = req.user!.id;
 
-    const updated = await this.jobService.updateJob(slug, req.body, employerId);
-
-    const jobDto = JobOutputDto.fromEntity(updated);
-    // const plainData = instanceToPlain(jobDto);
+    const updatedJob = await this.jobService.updateJob(slug, req.body, employerId);
 
     return successResponse({
       res,
       message: "Job updated successfully",
-      data: { job: jobDto },
+      data: { job: updatedJob },
     });
   };
   deleteJob = async (

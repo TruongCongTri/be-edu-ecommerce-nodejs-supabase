@@ -1,8 +1,6 @@
 import { Request, Response } from "express";
 import { LocationService } from "../services/location.service";
 import { successResponse } from "../../../utils/errors/responses/successResponse";
-import { instanceToPlain } from "class-transformer";
-import { LocationOutputDto } from "../../database/dtos.output/LocationOutput.dto";
 import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
 
 export class LocationController {
@@ -22,9 +20,6 @@ export class LocationController {
 
     const { locations, pagination } = await this.locationService.getAllLocations(queryParams);
 
-    // const locationDtos = locations.map(LocationOutputDto.fromEntity);
-    // const plainData = instanceToPlain(locationDtos);
-
     return successResponse({
       res,
       message: "List of locations",
@@ -42,9 +37,6 @@ export class LocationController {
 
     const { locations, pagination } = await this.locationService.getAllLocationsWithJobs(queryParams);
 
-    // const locationDtos = locations.map(LocationOutputDto.fromEntity);
-    // const plainData = instanceToPlain(locationDtos);
-
     return successResponse({
       res,
       message: "List of locations",
@@ -57,41 +49,32 @@ export class LocationController {
     const { code } = req.params;
     const location = await this.locationService.getLocationByCode(code);
 
-    const locationDto = LocationOutputDto.fromEntity(location);
-    // const plainData = instanceToPlain(locationDto);
-
     return successResponse({
       res,
       message: "Single Location",
-      data: { location: locationDto },
+      data: { location: location },
     });
   };
   // GET /api/locations/:code/jobs
   getLocationWithJobsBySlug = async (req: Request, res: Response) => {
     const { code } = req.params;
-    const location = await this.locationService.getLocationWithJobsByCode(code);
-
-    const locationDto = LocationOutputDto.fromEntity(location);
-    // const plainData = instanceToPlain(locationDto);
+    const locationWithJobs = await this.locationService.getLocationWithJobsByCode(code);
 
     return successResponse({
       res,
       message: "Single Location and its jobs",
-      data: { location: locationDto },
+      data: { location: locationWithJobs },
     });
   };
 
   // POST /api/locations
   createLocation = async (req: Request, res: Response) => {
-    const location = await this.locationService.createLocation(req.body);
-
-    const locationDto = LocationOutputDto.fromEntity(location);
-    // const plainData = instanceToPlain(locationDto);
+    const createdLocation = await this.locationService.createLocation(req.body);
 
     return successResponse({
       res,
       message: "Location created successfully",
-      data: { location: locationDto },
+      data: { location: createdLocation },
     });
   };
 
@@ -99,22 +82,18 @@ export class LocationController {
   updateLocation = async (req: Request, res: Response) => {
     const { code } = req.params;
 
-    const location = await this.locationService.updateLocation(code, req.body);
-
-    const locationDto = LocationOutputDto.fromEntity(location);
-    // const plainData = instanceToPlain(locationDto);
+    const updatedLocation = await this.locationService.updateLocation(code, req.body);
 
     return successResponse({
       res,
       message: "Location updated successfully",
-      data: { location: locationDto },
+      data: { location: updatedLocation },
     });
   };
 
   // DELETE /api/locations/:code
   deleteLocation = async (req: Request, res: Response) => {
     const { code } = req.params;
-
     await this.locationService.deleteLocation(code);
 
     return successResponse({

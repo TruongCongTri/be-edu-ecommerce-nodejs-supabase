@@ -9,6 +9,8 @@ import { RegisterDto } from "../../database/dtos/Register.dto";
 import { LoginDto } from "../../database/dtos/Login.dto";
 import { ValidateIdDto } from "../../database/dtos/ValidateId.dto";
 import { ChangePasswordDto } from "../../database/dtos/ChangePassword.dto";
+import { RegisterOutputDto } from "../../database/dtos.output/RegisterOutput.dto";
+import { LoginOutputDto } from "../../database/dtos.output/LoginOutput.dto";
 
 const JWT_SECRET = process.env.JWT_SECRET || "jwt_secret_key";
 const JWT_EXPIRES_IN: `${number}${"s" | "m" | "h" | "d"}` = (process.env
@@ -22,29 +24,15 @@ export class AuthService {
   // Service is injected via constructor
   constructor(private authRepo = authRepository) {}
 
-  // service layers should usually work with already validated primitive values, not DTO wrappers.
-
   /**
-   * Registers a new user with a specified role.
-   * @param dto Registration data (fullName, email, password, phoneNumber).
-   * @param role The role to assign to the new user (e.g., UserRole.JOB_SEEKER).
-   * @returns The newly created User entity.
+   * Private helper to get the salt rounds for bcrypt.
    */
-  register = async (dto: RegisterDto, role: UserRole): Promise<User> => {
-    // 1. Check if email already exists
-    const existing = await this.authRepo.findOne({
-      where: { email: dto.email },
-    });
-    if (existing) throw new AppError("Email already exists", 409);
-
-    // 2. Hash the password
+  private getSaltRounds = (): number => {
     let saltRounds: number;
     try {
-      // Ensure BYCRYPT_SALT is a valid number; fallback to default if not.
       const envSalt = process.env.BYCRYPT_SALT;
       saltRounds = envSalt ? parseInt(envSalt, 10) : DEFAULT_SALT_ROUNDS;
       if (isNaN(saltRounds) || saltRounds < 1) {
-        // Ensure salt rounds is a positive number
         console.warn(
           `Invalid BYCRYPT_SALT environment variable. Using default ${DEFAULT_SALT_ROUNDS} rounds.`
         );
@@ -54,7 +42,85 @@ export class AuthService {
       console.error("Error parsing BYCRYPT_SALT, using default:", e);
       saltRounds = DEFAULT_SALT_ROUNDS;
     }
+    return saltRounds;
+  };
 
+  /**
+   * Private helper to find a user by email, optionally selecting password.
+   * Returns the User entity or null.
+   */
+  private getUserByEmailEntity = async (
+    email: string,
+    selectPassword: boolean = false
+  ): Promise<User> => {
+    const selectOptions: Array<keyof User> = [
+      "id",
+      "email",
+      "role",
+      "fullName",
+      // "phoneNumber",
+    ];
+    if (selectPassword) {
+      selectOptions.push("password");
+    }
+    const user = await this.authRepo.findOne({
+      where: { email },
+      select: selectOptions,
+    });
+
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    return user;
+  };
+
+  /**
+   * Private helper to find a user by ID, optionally selecting password.
+   * Returns the User entity or null.
+   */
+  private getUserByIdEntity = async (
+    userId: string,
+    selectPassword: boolean = false
+  ): Promise<User> => {
+    const selectOptions: Array<keyof User> = [
+      "id",
+      "email",
+      "role",
+      "fullName",
+    ];
+    if (selectPassword) {
+      selectOptions.push("password");
+    }
+
+    const user = await this.authRepo.findOne({
+      where: { id: userId },
+      select: selectOptions,
+    });
+
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    return user;
+  };
+  // service layers should usually work with already validated primitive values, not DTO wrappers.
+
+  /**
+   * Registers a new user with a specified role.
+   * @param dto Registration data (fullName, email, password, phoneNumber).
+   * @param role The role to assign to the new user (e.g., UserRole.JOB_SEEKER).
+   * @returns The newly created User entity.
+   */
+  register = async (dto: RegisterDto, role: UserRole): Promise<RegisterOutputDto> => {
+    // 1. Check if email already exists
+    const existing = await this.authRepo.findOne({
+      where: { email: dto.email },
+    });
+    if (existing) throw new AppError("Email already exists", 409);
+
+    // 2. Hash the password
+    const saltRounds = this.getSaltRounds();
     const hashedPassword = await bcrypt.hash(dto.password, saltRounds);
 
     // 3. Create a new User entity instance
@@ -64,18 +130,24 @@ export class AuthService {
       password: hashedPassword, // Assign the hashed password
     });
 
-    // 4. Save the new user to the database
-    // The `save` method will return the saved entity, which is what RegisterOutputDto expects.
-    return await this.authRepo.save(newUser);
+    // --- BLOCK 4: Save the new user to the database ---
+    const createdAccount = await this.authRepo.save(newUser);
+
+    // --- BLOCK 5: Map Entities to DTOs ---
+    const accountDto = RegisterOutputDto.fromEntity(createdAccount);
+
+    // --- BLOCK 6: Return Data ---
+    return accountDto;
   };
 
-  login = async (dto: LoginDto): Promise<{ token: string }> => {
+  /**
+   * Logs in a user and returns a JWT token.
+   * @param dto The login credentials.
+   * @returns An object containing the JWT token.
+   */
+  login = async (dto: LoginDto): Promise<LoginOutputDto> => {
     // 1. Find user by email
-    const user = await this.authRepo.findOne({
-      where: { email: dto.email },
-      select: ["id", "email", "password", "role"], // Explicitly select password for comparison
-    });
-    if (!user) throw new AppError("Invalid credentials", 401);
+    const user = await this.getUserByEmailEntity(dto.email, true); // true to select password
 
     // 2. Compare provided password with hashed password from database
     const isMatch = await bcrypt.compare(dto.password, user.password);
@@ -89,40 +161,32 @@ export class AuthService {
       { expiresIn: JWT_EXPIRES_IN }
     ); // Token expiration
 
+    const loginData = LoginOutputDto.fromData(token);
+
+
     // 4. Return the token
-    return { token };
+    return loginData;
   };
 
+  /**
+   * Allows a user to change their password.
+   * @param userId The ID of the authenticated user.
+   * @param dto The change password data (current and new passwords).
+   * @returns void
+   */
   changePassword = async (
     userId: string,
     dto: ChangePasswordDto
   ): Promise<void> => {
-    // 1. Find the user by ID.
-    // Ensure 'password' is selected as it's needed for comparison.
-    const user = await this.authRepo.findOne({
-      where: { id: userId }, 
-      select: ["id", "email", "password", "role"], // Crucial: Select password explicitly 
-    });
-    // If user not found (shouldn't happen if auth middleware works, but good to check)
-    if (!user) throw new AppError("User not found", 404);
+    // 1. Find the user by ID, explicitly selecting password for comparison.
+    const user = await this.getUserByIdEntity(userId, true); // true to select password
 
     // 2. Verify the current password.
     const isMatch = await bcrypt.compare(dto.currentPassword, user.password);
     if (!isMatch) throw new AppError("Current password is incorrect", 401);
-    
+
     // 3. Hash the new password.
-    let saltRounds: number;
-    try {
-      const envSalt = process.env.BYCRYPT_SALT;
-      saltRounds = envSalt ? parseInt(envSalt, 10) : DEFAULT_SALT_ROUNDS;
-      if (isNaN(saltRounds) || saltRounds < 1) {
-        console.warn(`Invalid BYCRYPT_SALT environment variable. Using default ${DEFAULT_SALT_ROUNDS} rounds.`);
-        saltRounds = DEFAULT_SALT_ROUNDS;
-      }
-    } catch (e) {
-      console.error("Error parsing BYCRYPT_SALT, using default:", e);
-      saltRounds = DEFAULT_SALT_ROUNDS;
-    }
+    const saltRounds = this.getSaltRounds();
     const hashedNewPassword = await bcrypt.hash(dto.newPassword, saltRounds);
 
     // 4. Update the user's password and save.
