@@ -56,9 +56,10 @@ AppDataSource.initialize()
     app.use("/api/applications", ApplicationRouter);
 
     app.use(errorHandler);
-
+  })
+  .catch((error) => console.log(error))
+  .finally(() => {
     app.listen(port, () => {
       console.log(`🚀 Server is running at ${port}`);
     });
-  })
-  .catch((error) => console.log(error));
+  });
