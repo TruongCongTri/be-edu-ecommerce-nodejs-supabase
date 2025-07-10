@@ -38,28 +38,47 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(transformMiddleware());
 
+// ✅ Always have a basic root route
+app.get("/", (req, res) => {
+  res.send("🚀 Hello from Express! DB might be connected or not!");
+});
+
+// ✅ Always register routers
+app.use("/api/auth", AuthRouter);
+app.use("/api/user", UserRouter);
+app.use("/api/skills", SkillRouter);
+app.use("/api/categories", CategoryRouter);
+app.use("/api/locations", LocationRouter);
+app.use("/api/jobs", JobRouter);
+app.use("/api/applications", ApplicationRouter);
+app.use(errorHandler);
+
+const port = process.env.PORT || 5000;
+app.listen(port, () => {
+  console.log(`🚀 Server is running at ${port}`);
+});
+
 AppDataSource.initialize()
   .then(async () => {
-    console.log("Connected to database");
-    app.get("/", (req, res) => {
-      res.send("🚀 Hello from TypeORM & Express!");
-    });
+    console.log("✅ Connected to database");
+    // app.get("/", (req, res) => {
+    //   res.send("🚀 Hello from TypeORM & Express!");
+    // });
 
-    app.use("/api/auth", AuthRouter);
-    app.use("/api/user", UserRouter);
+    // app.use("/api/auth", AuthRouter);
+    // app.use("/api/user", UserRouter);
 
-    app.use("/api/skills", SkillRouter);
-    app.use("/api/categories", CategoryRouter);
-    app.use("/api/locations", LocationRouter);
-    app.use("/api/jobs", JobRouter);
-    app.use("/api/applications", ApplicationRouter);
+    // app.use("/api/skills", SkillRouter);
+    // app.use("/api/categories", CategoryRouter);
+    // app.use("/api/locations", LocationRouter);
+    // app.use("/api/jobs", JobRouter);
+    // app.use("/api/applications", ApplicationRouter);
 
-    app.use(errorHandler);
+    // app.use(errorHandler);
+
+    // const port = process.env.PORT || 5000;
+    // app.listen(port, () => {
+    //   console.log(`🚀 Server is running at ${port}`);
+    // });
   })
-  .catch((error) => console.log(error))
-  .finally(() => {
-    const port = process.env.PORT || 5000;
-    app.listen(port, () => {
-      console.log(`🚀 Server is running at ${port}`);
-    });
-  });
+  .catch((error) => console.error("❌ Failed to connect to database:", error));
