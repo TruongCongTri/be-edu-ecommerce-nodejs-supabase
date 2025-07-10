@@ -3,6 +3,7 @@ import { DataSource } from "typeorm";
 import "dotenv/config";
 // import { Job } from "./database/entities/Job";
 
+console.log("🌐 Connecting to:", process.env.SUPABASE_CONNECTION);
 export const AppDataSource = new DataSource({
   type: "postgres",
   // host: process.env.DB_HOST,
