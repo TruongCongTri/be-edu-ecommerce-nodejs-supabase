@@ -13,6 +13,7 @@ export const AppDataSource = new DataSource({
   url: process.env.SUPABASE_CONNECTION,
   synchronize: false,
   logging: false,
+  ssl: { rejectUnauthorized: false },
   // entities: [Job],
   entities: ["src/database/entities/**/*.ts"],
   subscribers: [],
