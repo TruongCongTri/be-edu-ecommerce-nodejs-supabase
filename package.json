@@ -29,6 +29,7 @@
   },
   "scripts": {
     "start": "ts-node src/index.ts",
+    "build": "tsc",
     "nodemon": "nodemon src/index.ts",
     "typeorm": "typeorm-ts-node-commonjs",
     "migration:revert": "ts-node ./node_modules/typeorm/cli.js migration:revert --dataSource src/data-source.ts",
