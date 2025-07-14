@@ -38,6 +38,8 @@
     "seed:categories": "ts-node scripts/seed-categories.ts",
     "seed:products": "ts-node scripts/seed-products.ts",
     "seed:allowed-origins": "ts-node scripts/seed-allowed-origins.ts",
-    "seed:forbidden-words": "ts-node scripts/seed-forbidden-words.ts"
+    "seed:forbidden-words": "ts-node scripts/seed-forbidden-words.ts",
+    "seed:view-histories": "ts-node scripts/seed-view-histories.ts",
+    "seed:favorites": "ts-node scripts/seed-favorites.ts"
   }
 }

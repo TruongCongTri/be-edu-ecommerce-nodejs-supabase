@@ -48,7 +48,7 @@ const forbiddenWordService = new ForbiddenWordService(forbiddenWordRepository);
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOriginService.isOriginAllowed(origin)) {
+      if (!origin || allowedOriginService.isOriginAllowed(origin) || []) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
