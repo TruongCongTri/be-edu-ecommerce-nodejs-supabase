@@ -41,7 +41,7 @@ import { ForbiddenWordService } from "./app/services/forbidden-word.service";
 import { forbiddenWordRepository } from "./app/repositories/forbidden-word.repository";
 
 const app = express();
-const port = 5000;
+const port = process.env.PORT || 5000;
 
 const allowedOriginService = new AllowedOriginService(allowedOriginRepository);
 const forbiddenWordService = new ForbiddenWordService(forbiddenWordRepository);
