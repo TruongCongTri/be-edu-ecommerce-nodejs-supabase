@@ -1,16 +1,20 @@
 import { Router } from "express";
 
-import { authenticateMiddleware } from "../middlewares/authenticateMiddleware";
-import { asyncHandler } from "../middlewares/asyncHandler";
-import { validateRequest } from "../middlewares/validateRequest";
+import { authenticateMiddleware } from "../middlewares/authenticate.middleware";
+import { asyncHandler } from "../middlewares/async-handler.middleware";
+import { validateRequest } from "../middlewares/validate-request.middleware";
 
 import { AuthController } from "../controllers/auth.controller";
 
-import { RegisterDto } from "../../database/dtos/Register.dto";
-import { LoginDto } from "../../database/dtos/Login.dto";
-import { ChangePasswordDto } from "../../database/dtos/ChangePassword.dto";
+// import { RegisterDto } from "../../database/dtos/Register.dto";
+// import { ChangePasswordDto } from "../../database/dtos/ChangePassword.dto";
+
 import { AuthService } from "../services/auth.service";
 import { authRepository } from "../repositories/auth.repository";
+
+import { CreateUserDto } from "../../database/dtos/create-user.dto";
+import { LoginDto } from "../../database/dtos/login.dto";
+import { ChangePasswordDto } from "../../database/dtos/change-password.dto";
 
 const router = Router();
 const authService = new AuthService(authRepository);
@@ -22,21 +26,21 @@ router.post("/login",
   asyncHandler(authController.login.bind(authController)) // Bind controller method for 'this' context
 );
 
-// Register - by default assumes job seeker
+// Register - by default assumes student
 router.post("/register",
-  validateRequest(RegisterDto, "body"),
-  asyncHandler(authController.registerJobSeeker.bind(authController))
+  validateRequest(CreateUserDto, "body"),
+  asyncHandler(authController.registerStudent.bind(authController))
 );
 
-// Register as employer
-router.post("/employer/register",
-  validateRequest(RegisterDto, "body"),
-  asyncHandler(authController.registerEmployer.bind(authController))
+// Register as educator
+router.post("/educator/register",
+  validateRequest(CreateUserDto, "body"),
+  asyncHandler(authController.registerEducator.bind(authController))
 );
 
 // Register as Admin
 router.post("/admin/register",
-  validateRequest(RegisterDto, "body"),
+  validateRequest(CreateUserDto, "body"),
   asyncHandler(authController.registerAdmin.bind(authController))
 );
 

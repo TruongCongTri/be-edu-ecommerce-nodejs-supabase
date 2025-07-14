@@ -1,5 +1,5 @@
 import { Exclude, Expose, Transform, Type } from "class-transformer";
-import { Job } from "../entities/Job";
+import { Job } from "../entities/Product";
 
 import { CategoryOutputDto } from "./CategoryOutput.dto";
 import { SkillOutputDto } from "./SkillOutput.dto";

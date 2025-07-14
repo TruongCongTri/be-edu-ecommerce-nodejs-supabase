@@ -7,7 +7,6 @@ import {
   UpdateDateColumn,
   ManyToMany,
 } from "typeorm";
-import { Job } from "./Job";
 
 @Entity("locations")
 export class Location {
@@ -20,8 +19,8 @@ export class Location {
   @Column({ unique: true })
   code!: string;
 
-  @ManyToMany(() => Job, job => job.locations)
-  jobs!: Job[];
+  // @ManyToMany(() => Job, job => job.locations)
+  // jobs!: Job[];
 
   @CreateDateColumn({ name: "created_at" })
   createdAt!: Date;

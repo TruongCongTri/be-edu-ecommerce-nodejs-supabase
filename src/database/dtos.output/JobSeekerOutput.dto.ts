@@ -1,5 +1,5 @@
 import { Expose, Type } from "class-transformer";
-import { JobSeeker } from "../entities/JobSeeker";
+import { JobSeeker } from "../entities/StudentDetail";
 import { JobPartialOutputDto } from "./JobPartialOutput.dto";
 import { UserOutputDto } from "./UserOutput.dto";
 import { SkillOutputDto } from "./SkillOutput.dto";

@@ -4,9 +4,6 @@ import { successResponse } from "../../../utils/errors/responses/successResponse
 import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
 
 export class SkillController {
-  // private skillService = new SkillService();
-  // constructor() {}
-
   constructor(private skillService: SkillService) {}
 
   // GET /api/skills
@@ -21,27 +18,24 @@ export class SkillController {
 
     return successResponse({
       res,
-      message: "List of skills",
+      message: "List of Skills fetched successfully",
       data: { skills: skills },
       pagination: pagination,
     });
   };
   // GET /api/skills/jobs
-  getAllSkillsWithJobs = async (
+  getAllSkillsWithProducts = async (
     req: Request<any, BaseQueryParamsDto>,
     res: Response
   ) => {
     // Extract the validated query parameters
     const queryParams = req.query;
 
-    const { skills, pagination } = await this.skillService.getAllSkillsWithJobs(queryParams);
-
-    // const skillDtos = skills.map(SkillOutputDto.fromEntity);
-    // const plainData = instanceToPlain(skillDtos);
+    const { skills, pagination } = await this.skillService.getAllSkillsWithProducts(queryParams);
 
     return successResponse({
       res,
-      message: "List of skills and their jobs",
+      message: "List of Skills and their jobs fetched successfully",
       data: { skills: skills },
       pagination: pagination,
     });
@@ -53,23 +47,23 @@ export class SkillController {
 
     return successResponse({
       res,
-      message: "Single Skill",
+      message: "Skill fetched successfully",
       data: { skill: skill },
     });
   };
   // GET /api/skills/:slug/jobs
-  getSkillWithJobsBySlug = async (req: Request, res: Response) => {
+  getSkillWithProductsBySlug = async (req: Request, res: Response) => {
     const { slug } = req.params;
-    const skillWithJobs = await this.skillService.getSkillWithJobsBySlug(slug);
+    const skillWithJobs = await this.skillService.getSkillWithProductsBySlug(slug);
 
     return successResponse({
       res,
-      message: "Single Skill and its jobs",
+      message: "Skill and its jobs fetched successfully",
       data: { skill: skillWithJobs },
     });
   };
 
-  // POST /api/skills
+  // POST /api/skills/create
   createSkill = async (req: Request, res: Response) => {
     const createdSkill = await this.skillService.createSkill(req.body);
 

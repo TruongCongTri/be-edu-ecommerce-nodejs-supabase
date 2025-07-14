@@ -4,10 +4,6 @@ import { successResponse } from "../../../utils/errors/responses/successResponse
 import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
 
 export class CategoryController {
-  // private cateService = new CategoryService();
-  // constructor() {}
-
-  // Service is injected via constructor
   constructor(private cateService: CategoryService) {}
 
   // GET /api/categories
@@ -20,33 +16,30 @@ export class CategoryController {
 
     const { categories, pagination } = await this.cateService.getAllCategories(queryParams);
 
-    // Pass the DTO instances directly. successResponse will handle instanceToPlain.
     return successResponse({
       res,
-      message: "List of Categories",
+      message: "List of Categories fetched successfully",
       data: { categories: categories },
       pagination: pagination,
     });
   };
-  // GET /api/categories/jobs
-  getAllCategoriesWithJobs = async (
+  // GET /api/categories/products
+  getAllCategoriesWithProducts = async (
     req: Request<any, BaseQueryParamsDto>,
     res: Response
   ) => {
     // Extract the validated query parameters
     const queryParams = req.query;
 
-    const { categories, pagination } = await this.cateService.getAllCategoriesWithJobs(queryParams);
+    const { categories, pagination } = await this.cateService.getAllCategoriesWithProducts(queryParams);
 
-    // Pass the DTO instances directly. successResponse will handle instanceToPlain.
     return successResponse({
       res,
-      message: "List of Categories with their jobs",
+      message: "List of Categories and their jobs fetched successfully",
       data: { categories: categories },
       pagination: pagination,
     });
   };
-
   // GET /api/categories/:slug
   getCategoryBySlug = async (req: Request, res: Response) => {
     const { slug } = req.params;
@@ -54,23 +47,23 @@ export class CategoryController {
 
     return successResponse({
       res,
-      message: "Single Category",
+      message: "Category fetched successfully",
       data: { category: category },
     });
   };
   // GET /api/categories/:slug/jobs
-  getCategoryWithJobsBySlug = async (req: Request, res: Response) => {
+  getCategoryWithProductsBySlug = async (req: Request, res: Response) => {
     const { slug } = req.params;
-    const categoryWithJobs = await this.cateService.getCategoryWithJobsBySlug(slug);
+    const cateWithJobs = await this.cateService.getCategoryWithProductsBySlug(slug);
 
     return successResponse({
       res,
-      message: "Single Category and its jobs",
-      data: { category: categoryWithJobs },
+      message: "Category and its jobs fetched successfully",
+      data: { category: cateWithJobs },
     });
   };
 
-  // POST /api/categories
+  // POST /api/categories/create
   createCategory = async (req: Request, res: Response) => {
     const createdCategory = await this.cateService.createCategory(req.body);
 
@@ -94,7 +87,7 @@ export class CategoryController {
   };
 
   // DELETE /api/categories/:slug
-  async deleteCategory(req: Request, res: Response) {
+  deleteCategory = async (req: Request, res: Response) => {
     const { slug } = req.params;
     await this.cateService.deleteCategory(slug);
 
@@ -102,5 +95,5 @@ export class CategoryController {
       res,
       message: "Category deleted successfully",
     });
-  }
+  };
 }

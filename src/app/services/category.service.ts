@@ -1,55 +1,53 @@
-import { categoryRepository } from "../repositories/category.repository";
+import { AppError } from "../../../utils/errors/AppError";
 
-import { CreateCategoryDto } from "../../database/dtos/CreateCategory.dto";
-import { UpdateCategoryDto } from "../../database/dtos/UpdateCategory.dto";
+import { slugify } from "../../../utils/helpers/slugify.helper";
+
+import { CategoryRepositoryType } from "../repositories/category.repository";
 
 import { Category } from "../../database/entities/Category";
+import { CategoryDto } from "../../database/dtos/category.dto";
+import { CreateCategoryDto } from "../../database/dtos/create-category.dto";
+import { UpdateCategoryDto } from "../../database/dtos/update-category.dto";
+import { BaseQueryParamsDto } from "../../database/dtos/base-query-params.dto";
+import { PaginationMetaDto } from "../../database/dtos/pagination-meta.dto";
 
-import { slugify } from "../../../utils/helpers/slugify";
-import { AppError } from "../../../utils/errors/AppError";
-import { checkForbiddenWords } from "../../../utils/forbiddenWordsChecker";
-import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
-import { PaginationMetaDto } from "../../database/dtos.output/PaginationMeta.dto";
-import { buildQueryOptions } from "../../../utils/buildQueryOptions";
-import { CategoryOutputDto } from "../../database/dtos.output/CategoryOutput.dto";
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE } from "../../../constants/enum";
-import { createPaginationMeta } from "../../../utils/helpers/paginationHelper";
+
+import { buildQueryOptions } from "../../../utils/build-query-options";
+import { createPaginationMeta } from "../../../utils/helpers/pagination.helper";
+import { checkForbiddenWords } from "../../../utils/forbidden-words-checker";
 
 export class CategoryService {
-  // private cateRepo = categoryRepository;
-  // constructor() {}
-  // Repo is injected via constructor
-  constructor(private cateRepo = categoryRepository) {}
+  private cateRepo: CategoryRepositoryType;
+
+  constructor(cateRepo: CategoryRepositoryType) {
+    this.cateRepo = cateRepo;
+  }
 
   /**
-   * Private helper to fetch a Category entity by its slug, including necessary relations for internal use.
-   * Throws AppError if not found.
-   * @param slug The slug of the category.
-   * @param withRelations An optional object to specify relations to load.
-   * @returns The Category entity.
+   * Fetches the Category entity by unique slug.
+   * Does NOT throw if not found, as category might need to be created.
+   * @param slug The unique Slug of the associated category.
+   * @param relations Optional relations to load (e.g., ['products']).
+   * @returns The Category entity or null.
    */
-  private getCategoryEntityBySlug = async (
+  private async getCategoryEntity(
     slug: string,
-    withRelations?: { jobs?: boolean } // Define which relations can be loaded
-  ): Promise<Category> => {
-    // --- BLOCK 1: Fetch Category by slug and Handle Not Found ---
-    const category = await this.cateRepo.findOne({
+    relations?: { products?: boolean } // Define which relations can be loaded
+  ): Promise<Category | null> {
+    const cate = await this.cateRepo.findOne({
       where: { slug },
-      relations: withRelations, // Dynamically load relations based on need
+      relations: relations,
     });
-    if (!category) {
-      throw new AppError("Category not found", 404);
-    }
+    return cate;
+  }
 
-    // --- BLOCK 2: Return the Category entity ---
-    return category;
-  };
-
-  // Get all category - public access
+  // --- Public Methods (Exposed to Controllers) ---
+  // READ categories
   getAllCategories = async (
     queryParams: BaseQueryParamsDto
   ): Promise<{
-    categories: CategoryOutputDto[];
+    categories: CategoryDto[];
     pagination: PaginationMetaDto;
   }> => {
     // --- BLOCK 1: Destructure Query Parameters ---
@@ -65,35 +63,31 @@ export class CategoryService {
     });
 
     // --- BLOCK 3: Execute Database Query (findAndCount) ---
-    const [categories, total] = await this.cateRepo.findAndCount({
+    const [skills, total] = await this.cateRepo.findAndCount({
       ...findOptions, // Spread the generated findOptions
       relations: {
-        // jobs: {
-        //   employer: true,
-        //   category: true,
-        //   skills: true,
-        //   locations: true,
+        // products: {
+        //   educator: true,
         // },
       },
     });
 
     // --- BLOCK 4: Map Entities to DTOs ---
-    const categoryDtos = categories.map(CategoryOutputDto.fromEntity);
+    const cateDtos = skills.map(CategoryDto.fromEntity);
 
     // --- BLOCK 5: Calculate and Create Pagination Metadata ---
     const paginationMeta = createPaginationMeta(page!, per_page!, total);
 
     // --- BLOCK 6: Return Data and Pagination Metadata ---
     return {
-      categories: categoryDtos,
+      categories: cateDtos,
       pagination: paginationMeta,
     };
   };
-  // Get all category with their jobs - public access
-  getAllCategoriesWithJobs = async (
+  getAllCategoriesWithProducts = async (
     queryParams: BaseQueryParamsDto
   ): Promise<{
-    categories: CategoryOutputDto[];
+    categories: CategoryDto[];
     pagination: PaginationMetaDto;
   }> => {
     // --- BLOCK 1: Destructure Query Parameters ---
@@ -109,62 +103,64 @@ export class CategoryService {
     });
 
     // --- BLOCK 3: Execute Database Query (findAndCount) ---
-    const [categories, total] = await this.cateRepo.findAndCount({
+    const [skills, total] = await this.cateRepo.findAndCount({
       ...findOptions, // Spread the generated findOptions
       relations: {
-        jobs: {
-          employer: true,
-          category: true,
-          skills: true,
-          locations: true,
+        products: {
+          educator: true,
         },
       },
     });
 
     // --- BLOCK 4: Map Entities to DTOs ---
-    const categoryDtos = categories.map(CategoryOutputDto.fromEntity);
+    const cateDtos = skills.map(CategoryDto.fromEntity);
 
     // --- BLOCK 5: Calculate and Create Pagination Metadata ---
     const paginationMeta = createPaginationMeta(page!, per_page!, total);
 
     // --- BLOCK 6: Return Data and Pagination Metadata ---
     return {
-      categories: categoryDtos,
+      categories: cateDtos,
       pagination: paginationMeta,
     };
   };
 
-  // Get single category by slug - public access
-  getCategoryBySlug = async (slug: string): Promise<CategoryOutputDto> => {
+  // Get single Category by slug - public access
+  getCategoryBySlug = async (slug: string): Promise<CategoryDto> => {
     // --- BLOCK 1: Call the private method to get the entity ---
-    const category = await this.getCategoryEntityBySlug(slug);
+    const cate = await this.getCategoryEntity(slug);
+
+    if (!cate) throw new AppError("Category not found", 404);
 
     // --- BLOCK 2: Map Entities to DTOs ---
-    const categoryDto = CategoryOutputDto.fromEntity(category);
+    const cateDto = CategoryDto.fromEntity(cate);
 
     // --- BLOCK 3: Return Data ---
-    return categoryDto;
+    return cateDto;
   };
-  // Get single category with its jobs by slug - public access
-  getCategoryWithJobsBySlug = async (
+  // Get single Category with its products by slug - public access
+  getCategoryWithProductsBySlug = async (
     slug: string
-  ): Promise<CategoryOutputDto> => {
-    // --- BLOCK 1: Call the private method to get the entity, ensuring 'jobs' relation is loaded ---
-    const category = await this.getCategoryEntityBySlug(slug, { jobs: true });
+  ): Promise<CategoryDto> => {
+    // --- BLOCK 1: Call the private method to get the entity ---
+    const cate = await this.getCategoryEntity(slug, { products: true });
+
+    if (!cate) throw new AppError("Category not found", 404);
 
     // --- BLOCK 2: Map Entities to DTOs ---
-    const categoryDto = CategoryOutputDto.fromEntity(category);
+    const cateDto = CategoryDto.fromEntity(cate);
 
     // --- BLOCK 3: Return Data ---
-    return categoryDto;
+    return cateDto;
   };
 
-  // Create new category - restricted access for only admin
-  createCategory = async (
-    dto: CreateCategoryDto
-  ): Promise<CategoryOutputDto> => {
+  // CREATE new Category - restricted access for only admin
+  createCategory = async (dto: CreateCategoryDto): Promise<CategoryDto> => {
     // --- BLOCK 1: Call the private method to get the entity ---
-    checkForbiddenWords([dto.name, dto.description || ""], "Category");
+    checkForbiddenWords(
+      { name: dto.name, description: dto.description },
+      "Category"
+    );
 
     // --- BLOCK 2: Manual check for unique name before attempting to save ---
     const existing = await this.cateRepo.findOneBy({ name: dto.name });
@@ -175,35 +171,34 @@ export class CategoryService {
       ...dto,
       slug: slugify(dto.name),
     });
-
-    // --- BLOCK 4: Save the new category to the database ---
-    const createdCategory = await this.cateRepo.save(cateToCreate);
+    // --- BLOCK 4: Save the new category to the database
+    const createdCate = await this.cateRepo.save(cateToCreate);
 
     // --- BLOCK 5: Map Entities to DTOs ---
-    const categoryDto = CategoryOutputDto.fromEntity(createdCategory);
+    const cateDto = CategoryDto.fromEntity(createdCate);
 
     // --- BLOCK 6: Return Data ---
-    return categoryDto;
+    return cateDto;
   };
-  // Update a category - restricted access for only admin
+
+  // UPDATE a skill - restricted access for only admin
   updateCategory = async (
     slug: string,
     dto: UpdateCategoryDto
-  ): Promise<CategoryOutputDto> => {
-    // --- BLOCK 1: Fetch Skill with its jobs by slug and Handle Not Found ---
-    const cateToUpdate = await this.getCategoryEntityBySlug(slug);
+  ): Promise<CategoryDto> => {
+    // --- BLOCK 1: Fetch Category with its jobs by slug and Handle Not Found ---
+    const cateToUpdate = await this.getCategoryEntity(slug);
+
+    if (!cateToUpdate) throw new AppError("Category not found", 404);
 
     // --- BLOCK 2: Destructure body Parameters ---
     const { name, description } = dto;
 
     // --- BLOCK 3: Perform content checks using the utility function ---
-    // This is correctly getting the *effective* name and description after considering DTO updates.
-    const nameToCheck = name !== undefined ? name : cateToUpdate.name;
-    const descriptionToCheck =
-      description !== undefined ? description : cateToUpdate.description;
-    // The `|| ''` for descriptionToCheck handles cases where description might be null/undefined initially,
-    // ensuring checkForbiddenWords always receives a string.
-    checkForbiddenWords([nameToCheck, descriptionToCheck || ""], "Category");
+    const fieldsToValidate: Record<string, string> = {};
+    if (name !== undefined) fieldsToValidate.name = name;
+    if (description !== undefined) fieldsToValidate.description = description;
+    checkForbiddenWords(fieldsToValidate, "Category");
 
     // --- BLOCK 4: Check for unique name conflict ONLY if the name is actually changing
     // This correctly avoids false positives if the name isn't being updated
@@ -227,26 +222,26 @@ export class CategoryService {
     });
 
     // --- BLOCK 7: Save the new category to the database
-    const updatedCategory = await this.cateRepo.save(cateToUpdate);
+    const updatedCate = await this.cateRepo.save(cateToUpdate);
 
     // --- BLOCK 8: Map Entities to DTOs ---
-    const categoryDto = CategoryOutputDto.fromEntity(updatedCategory);
+    const cateDto = CategoryDto.fromEntity(updatedCate);
 
     // --- BLOCK 9: Return Data ---
-    return categoryDto;
+    return cateDto;
   };
 
-  // Delete a category - restricted access for only admin
+  // DELETE a Category - restricted access for only admin
   deleteCategory = async (slug: string): Promise<void> => {
-    // --- BLOCK 1: Call the private method to get the entity, ensuring 'jobs' relation is loaded ---
-    const cateToDelete = await this.getCategoryEntityBySlug(slug, {
-      jobs: true,
-    });
+    // --- BLOCK 1: Call the private method to get the entity, ensuring 'products' relation is loaded ---
+    const cateToDelete = await this.getCategoryEntity(slug, { products: true });
 
-    // --- BLOCK 2: Check if the category has associated jobs ---
-    if (cateToDelete.jobs && cateToDelete.jobs.length > 0) {
+    if (!cateToDelete) throw new AppError("Category not found", 404);
+
+    // --- BLOCK 2: Check if the category has associated products ---
+    if (cateToDelete.products && cateToDelete.products.length > 0) {
       throw new AppError(
-        "Cannot delete category: It has associated jobs.",
+        "Cannot delete Category: It has associated products.",
         400
       ); // Or 409 Conflict
     }

@@ -1,4 +1,3 @@
-// src/database/entities/Skill.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -7,8 +6,7 @@ import {
   UpdateDateColumn,
   ManyToMany,
 } from "typeorm";
-import { Job } from "./Job";
-import { JobSeeker } from "./JobSeeker";
+import { Product } from "./Product";
 
 @Entity("skills")
 export class Skill {
@@ -21,15 +19,14 @@ export class Skill {
   @Column({ name: "slug", unique: true })
   slug!: string;
 
-  @ManyToMany(() => JobSeeker, (jobSeeker) => jobSeeker.skills)
-  jobSeekers!: JobSeeker[];
+  @Column({ type: "text", nullable: true })
+  description?: string;
 
-  @ManyToMany(() => Job, (job) => job.skills)
-  jobs!: Job[];
+  @ManyToMany(() => Product, product => product.skills)
+  products!: Product[];
 
   @CreateDateColumn({ name: "created_at" })
   createdAt!: Date;
-
   @UpdateDateColumn({ name: "updated_at" })
   updatedAt!: Date;
 }

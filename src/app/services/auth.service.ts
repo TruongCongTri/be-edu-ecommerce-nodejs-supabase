@@ -5,10 +5,11 @@ import { authRepository } from "../repositories/auth.repository";
 import { User } from "../../database/entities/User";
 import { AppError } from "../../../utils/errors/AppError";
 import { UserRole } from "../../../constants/enum";
-import { RegisterDto } from "../../database/dtos/Register.dto";
-import { LoginDto } from "../../database/dtos/Login.dto";
-import { ValidateIdDto } from "../../database/dtos/ValidateId.dto";
-import { ChangePasswordDto } from "../../database/dtos/ChangePassword.dto";
+
+import { LoginDto } from "../../database/dtos/login.dto";
+import { CreateUserDto } from "../../database/dtos/create-user.dto";
+import { ChangePasswordDto } from "../../database/dtos/change-password.dto";
+
 import { RegisterOutputDto } from "../../database/dtos.output/RegisterOutput.dto";
 import { LoginOutputDto } from "../../database/dtos.output/LoginOutput.dto";
 
@@ -61,7 +62,7 @@ export class AuthService {
       // "phoneNumber",
     ];
     if (selectPassword) {
-      selectOptions.push("password");
+      selectOptions.push("passwordHash");
     }
     const user = await this.authRepo.findOne({
       where: { email },
@@ -90,7 +91,7 @@ export class AuthService {
       "fullName",
     ];
     if (selectPassword) {
-      selectOptions.push("password");
+      selectOptions.push("passwordHash");
     }
 
     const user = await this.authRepo.findOne({
@@ -112,7 +113,7 @@ export class AuthService {
    * @param role The role to assign to the new user (e.g., UserRole.JOB_SEEKER).
    * @returns The newly created User entity.
    */
-  register = async (dto: RegisterDto, role: UserRole): Promise<RegisterOutputDto> => {
+  register = async (dto: CreateUserDto, role: UserRole): Promise<RegisterOutputDto> => {
     // 1. Check if email already exists
     const existing = await this.authRepo.findOne({
       where: { email: dto.email },
@@ -127,7 +128,7 @@ export class AuthService {
     const newUser = this.authRepo.create({
       ...dto, // Spreads fullName, email, phoneNumber
       role, // Assign the specified role
-      password: hashedPassword, // Assign the hashed password
+      passwordHash: hashedPassword, // Assign the hashed password
     });
 
     // --- BLOCK 4: Save the new user to the database ---
@@ -150,8 +151,8 @@ export class AuthService {
     const user = await this.getUserByEmailEntity(dto.email, true); // true to select password
 
     // 2. Compare provided password with hashed password from database
-    const isMatch = await bcrypt.compare(dto.password, user.password);
-    if (!isMatch) throw new AppError("Invalid credentials", 401);
+    const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!isMatch) throw new AppError("email or password is incorrect", 401);
 
     // 3. Generate JWT token
     // Ensure `user.role` property exists on your User entity
@@ -162,7 +163,6 @@ export class AuthService {
     ); // Token expiration
 
     const loginData = LoginOutputDto.fromData(token);
-
 
     // 4. Return the token
     return loginData;
@@ -182,7 +182,7 @@ export class AuthService {
     const user = await this.getUserByIdEntity(userId, true); // true to select password
 
     // 2. Verify the current password.
-    const isMatch = await bcrypt.compare(dto.currentPassword, user.password);
+    const isMatch = await bcrypt.compare(dto.currentPassword, user.passwordHash);
     if (!isMatch) throw new AppError("Current password is incorrect", 401);
 
     // 3. Hash the new password.
@@ -190,7 +190,7 @@ export class AuthService {
     const hashedNewPassword = await bcrypt.hash(dto.newPassword, saltRounds);
 
     // 4. Update the user's password and save.
-    user.password = hashedNewPassword;
+    user.passwordHash = hashedNewPassword;
 
     await this.authRepo.save(user);
   };

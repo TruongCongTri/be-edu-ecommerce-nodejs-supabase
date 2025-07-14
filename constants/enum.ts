@@ -1,22 +1,7 @@
 export enum UserRole {
-  JOB_SEEKER = "job_seeker",
-  EMPLOYER = "employer",
-  ADMIN = "admin",
-}
-
-export enum EmploymentType {
-  FULL_TIME = "full-time",
-  PART_TIME = "part-time",
-  CONTRACT = "contract",
-  INTERNSHIP = "internship",
-  FREELANCE = "freelance",
-}
-
-export enum ExperienceLevel {
-  FRESHER = "fresher",
-  JUNIOR = "junior",
-  MID = "mid",
-  SENIOR = "senior",
+  STUDENT = 'student',
+  EDUCATOR = 'educator',
+  ADMIN = 'admin',
 }
 
 export enum Status {

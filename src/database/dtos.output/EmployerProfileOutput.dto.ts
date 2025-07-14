@@ -1,6 +1,6 @@
 import { Expose } from "class-transformer";
 import { BaseProfileOutputDto } from "./BaseProfileOutput.dto";
-import { Employer } from "../entities/Employer";
+import { EducatorDetail } from "../entities/EducatorDetail";
 
 export class EmployerProfileOutputDto extends BaseProfileOutputDto {
   @Expose()
@@ -23,18 +23,12 @@ export class EmployerProfileOutputDto extends BaseProfileOutputDto {
     Object.assign(this, partial);
   }
 
-  static fromEntity(employer: Employer): EmployerProfileOutputDto {
+  static fromEntity(employer: EducatorDetail): EmployerProfileOutputDto {
     return new EmployerProfileOutputDto({
       id: employer.user.id,
       fullName: employer.user.fullName,
       email: employer.user.email,
       role: employer.user.role,
-      address: employer.user.address ?? null,
-      companyName: employer.companyName,
-      slug: employer.slug,
-      companyWebsite: employer.companyWebsite ?? null,
-      companyDescription: employer.companyDescription ?? null,
-      companyLogoUrl: employer.companyLogoUrl ?? null,
     });
   }
 }

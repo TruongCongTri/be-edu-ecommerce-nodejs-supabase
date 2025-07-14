@@ -1,18 +1,18 @@
 import { AppDataSource } from "../../data-source";
 import { Repository } from "typeorm";
 import { User } from "../../database/entities/User";
-import { Employer } from "../../database/entities/Employer";
-import { JobSeeker } from "../../database/entities/JobSeeker";
+import { EducatorDetail } from "../../database/entities/EducatorDetail";
+import { StudentDetail } from "../../database/entities/StudentDetail";
 
 //1. tạo lớp interface, kế thừa repository mặc định của tyopeorm
 export const userRepository: Repository<User> =
   AppDataSource.getRepository(User);
 export type UserRepositoryType = Repository<User>;
 
-export const employerRepository: Repository<Employer> =
-  AppDataSource.getRepository(Employer);
-export type EmployerRepositoryType = Repository<Employer>;
+export const educatorRepository: Repository<EducatorDetail> =
+  AppDataSource.getRepository(EducatorDetail);
+export type EducatorRepositoryType = Repository<EducatorDetail>;
 
-export const jobSeekerRepository: Repository<JobSeeker> =
-  AppDataSource.getRepository(JobSeeker);
-export type JobSeekerRepositoryType = Repository<JobSeeker>;
+export const studentRepository: Repository<StudentDetail> =
+  AppDataSource.getRepository(StudentDetail);
+export type StudentRepositoryType = Repository<StudentDetail>;

@@ -1,5 +1,5 @@
 import { Expose, Type } from "class-transformer";
-import { Employer } from "../entities/Employer";
+import { Employer } from "../entities/EducatorDetail";
 import { UserOutputDto } from "./UserOutput.dto";
 
 export class EmployerOutputDto {

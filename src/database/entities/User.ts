@@ -5,10 +5,17 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   PrimaryGeneratedColumn,
+  OneToOne,
+  OneToMany,
 } from "typeorm";
 
 import { Exclude } from "class-transformer";
 import { UserRole } from "../../../constants/enum";
+import { StudentDetail } from "./StudentDetail";
+import { EducatorDetail } from "./EducatorDetail";
+import { Product } from "./Product";
+import { ViewHistory } from "./ViewHistory";
+import { Favorite } from "./Favorite";
 
 @Entity("users")
 export class User {
@@ -21,14 +28,11 @@ export class User {
   @Column({ unique: true })
   email!: string;
 
-  @Column()
+  @Column({ name: "password_hash" })
   @Exclude() // hide from output
-  password!: string;
+  passwordHash!: string;
 
-  @Column({ nullable: true })
-  address?: string;
-
-  @Column({ type: "enum", enum: UserRole, default: UserRole.JOB_SEEKER })
+  @Column({ type: "enum", enum: UserRole, default: UserRole.STUDENT })
   role!: UserRole;
 
   @CreateDateColumn({ name: "created_at" })
@@ -36,4 +40,19 @@ export class User {
 
   @UpdateDateColumn({ name: "updated_at" })
   updatedAt!: Date;
+
+  @OneToOne(() => StudentDetail, detail => detail.user)
+  studentDetail?: StudentDetail;
+
+  @OneToOne(() => EducatorDetail, detail => detail.user)
+  educatorDetail?: EducatorDetail;
+
+  @OneToMany(() => Product, product => product.educator)
+  products?: Product[];
+
+  @OneToMany(() => ViewHistory, history => history.user)
+  viewHistory!: ViewHistory[];
+
+  @OneToMany(() => Favorite, favorite => favorite.user)
+  favorites!: Favorite[];
 }

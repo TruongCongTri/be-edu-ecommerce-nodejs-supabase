@@ -1,6 +1,6 @@
 import { instanceToPlain } from "class-transformer";
 import { successResponse } from "../../../utils/errors/responses/successResponse";
-import { AuthenticatedRequest } from "../middlewares/authenticateMiddleware";
+import { AuthenticatedRequest } from "../middlewares/authenticate.middleware";
 import { UserService } from "../services/user.service";
 import { Response } from "express";
 
@@ -26,6 +26,38 @@ export class UserController {
     return successResponse({
       res,
       message: "Get profile successfully",
+      data: { profile: profileDto },
+    });
+  };
+
+  getStudentProfile = async (req: AuthenticatedRequest, res: Response) => {
+    // Extract the ID of the authenticated user
+    const userId = req.user!.id;
+
+    // Delegate to UserService to fetch the user's profile
+    // Expecting ProfileOutputDto from the service
+    const profileDto = await this.userService.getStudentDetail(userId);
+    // const plainProfile = instanceToPlain(profileDto);
+
+    return successResponse({
+      res,
+      message: "Get Student profile successfully",
+      data: { profile: profileDto },
+    });
+  };
+
+  getEducatorProfile = async (req: AuthenticatedRequest, res: Response) => {
+    // Extract the ID of the authenticated user
+    const userId = req.user!.id;
+
+    // Delegate to UserService to fetch the user's profile
+    // Expecting ProfileOutputDto from the service
+    const profileDto = await this.userService.getEducatorDetail(userId);
+    // const plainProfile = instanceToPlain(profileDto);
+
+    return successResponse({
+      res,
+      message: "Get Educator profile successfully",
       data: { profile: profileDto },
     });
   };

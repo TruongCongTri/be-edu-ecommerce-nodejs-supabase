@@ -6,24 +6,49 @@ import express from "express";
 
 import AuthRouter from "./app/routes/auth.route";
 import UserRouter from "./app/routes/user.route";
+import StudentUserRouter from "./app/routes/student.user.route";
+import EducatorUserRouter from "./app/routes/educator.user.route";
+
 import SkillRouter from "./app/routes/skill.route";
+import AdminSkillRouter from "./app/routes/admin.skill.route";
 import CategoryRouter from "./app/routes/category.route";
-import LocationRouter from "./app/routes/location.route";
-import JobRouter from "./app/routes/job.route";
-import ApplicationRouter from "./app/routes/application.route";
+import AdminCategoryRouter from "./app/routes/admin.category.route";
+
+import ProductRouter from "./app/routes/product.route";
+import EducatorProductRouter from "./app/routes/educator.product.route";
+
+import ProductDetailRouter from "./app/routes/product-detail.route";
+import EducatorProductDetailRouter from "./app/routes/educator.product-detail.route";
+import AdminProductDetailRouter from "./app/routes/admin.product-detail.route";
+
+import ViewHistoryRouter from "./app/routes/view-history.route";
+import AdminViewHistoryRouter from "./app/routes/admin.view-history.route";
+import FavoriteRouter from "./app/routes/favorite.route";
+import AdminFavoriteRouter from "./app/routes/admin.favorite.route";
+
+import AdminAllowedOriginRouter from "./app/routes/admin.allowed-origin.route";
+import AdminForbiddenWordRouter from "./app/routes/admin.forbidden-word.route";
+
+
+import { AllowedOriginService } from "./app/services/allowed-origin.service";
 
 import cors from "cors";
-import { errorHandler } from "./app/middlewares/errorHandler";
+
 import { transformMiddleware } from "./app/middlewares/transformer.middleware";
+import { errorHandler } from "./app/middlewares/error-handler.middleware";
+import { allowedOriginRepository } from "./app/repositories/allowed-origin.repository";
+import { ForbiddenWordService } from "./app/services/forbidden-word.service";
+import { forbiddenWordRepository } from "./app/repositories/forbidden-word.repository";
 
 const app = express();
+const port = 5000;
 
-const allowedOrigins = ["http://localhost:3000", "https://your-domain.com"];
-
+const allowedOriginService = new AllowedOriginService(allowedOriginRepository);
+const forbiddenWordService = new ForbiddenWordService(forbiddenWordRepository);
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin || allowedOriginService.isOriginAllowed(origin)) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
@@ -38,47 +63,47 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(transformMiddleware());
 
-// ✅ Always have a basic root route
-app.get("/", (req, res) => {
-  res.send("🚀 Hello from Express! DB might be connected or not!");
-});
-
-// ✅ Always register routers
-app.use("/api/auth", AuthRouter);
-app.use("/api/user", UserRouter);
-app.use("/api/skills", SkillRouter);
-app.use("/api/categories", CategoryRouter);
-app.use("/api/locations", LocationRouter);
-app.use("/api/jobs", JobRouter);
-app.use("/api/applications", ApplicationRouter);
-app.use(errorHandler);
-
-const port = process.env.PORT || 5000;
-app.listen(port, () => {
-  console.log(`🚀 Server is running at ${port}`);
-});
-
 AppDataSource.initialize()
   .then(async () => {
-    console.log("✅ Connected to database");
-    // app.get("/", (req, res) => {
-    //   res.send("🚀 Hello from TypeORM & Express!");
-    // });
+    // Load allowed origins and forbidden words from DB
+    await allowedOriginService.loadCache();
+    await forbiddenWordService.loadCache();
 
-    // app.use("/api/auth", AuthRouter);
-    // app.use("/api/user", UserRouter);
+    console.log("Connected to database");
+    app.get("/", (req, res) => {
+      res.send("🚀 Hello from TypeORM & Express!");
+    });
 
-    // app.use("/api/skills", SkillRouter);
-    // app.use("/api/categories", CategoryRouter);
-    // app.use("/api/locations", LocationRouter);
-    // app.use("/api/jobs", JobRouter);
-    // app.use("/api/applications", ApplicationRouter);
+    app.use("/api/auth", AuthRouter);
+    app.use("/api/users", UserRouter);
+    app.use("/api/students", StudentUserRouter);
+    app.use("/api/educators", EducatorUserRouter);
 
-    // app.use(errorHandler);
+    app.use("/api/skills", SkillRouter);
+    app.use("/api/admin/skills", AdminSkillRouter);
+    app.use("/api/categories", CategoryRouter);
+    app.use("/api/admin/categories", AdminCategoryRouter);
 
-    // const port = process.env.PORT || 5000;
-    // app.listen(port, () => {
-    //   console.log(`🚀 Server is running at ${port}`);
-    // });
+    app.use("/api/products", ProductRouter);
+    app.use("/api/educator/products", EducatorProductRouter);
+
+    app.use("/api/products", ProductDetailRouter);
+    app.use("/api/educator/products", EducatorProductDetailRouter);
+    app.use("/api/admin/products", AdminProductDetailRouter);
+
+    app.use("/api/users/me/view-history", ViewHistoryRouter);
+    app.use("/api/admin/view-history", AdminViewHistoryRouter);
+    app.use("/api/users/me/favorite", FavoriteRouter);
+    app.use("/api/admin/favorite", AdminFavoriteRouter);
+
+    app.use("/api/admin/allowed-origins", AdminAllowedOriginRouter);
+    app.use("/api/admin/forbidden-words", AdminForbiddenWordRouter);
+
+    app.use(errorHandler);
   })
-  .catch((error) => console.error("❌ Failed to connect to database:", error));
+  .catch((error) => console.log(error))
+  .finally(() => {
+    app.listen(port, () => {
+      console.log(`🚀 Server is running at ${port}`);
+    });
+  });

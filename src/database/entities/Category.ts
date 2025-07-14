@@ -1,4 +1,3 @@
-// src/database/entities/Category.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -7,7 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from "typeorm";
-import { Job } from "./Job";
+import { Product } from "./Product";
 
 @Entity("categories")
 export class Category {
@@ -23,12 +22,11 @@ export class Category {
   @Column({ type: "text", nullable: true })
   description?: string;
 
-  @OneToMany(() => Job, job => job.category)
-  jobs!: Job[];
+  @OneToMany(() => Product, product => product.category)
+  products!: Product[];
 
   @CreateDateColumn({ name: "created_at" })
   createdAt!: Date;
-
   @UpdateDateColumn({ name: "updated_at" })
   updatedAt!: Date;
 }

@@ -1,5 +1,5 @@
 import { Expose } from "class-transformer";
-import { Job } from "../entities/Job";
+import { Job } from "../entities/Product";
 
 export class JobPartialOutputDto {
   @Expose()

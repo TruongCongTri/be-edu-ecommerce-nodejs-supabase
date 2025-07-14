@@ -1,14 +1,11 @@
 import { Request, Response } from "express";
 import { AuthService } from "../services/auth.service";
 import { successResponse } from "../../../utils/errors/responses/successResponse";
-import { RegisterDto } from "../../database/dtos/Register.dto";
+import { CreateUserDto } from "../../database/dtos/create-user.dto";
 import { UserRole } from "../../../constants/enum";
-import { LoginDto } from "../../database/dtos/Login.dto";
-import { AuthenticatedRequest } from "../middlewares/authenticateMiddleware";
+import { LoginDto } from "../../database/dtos/login.dto";
+import { AuthenticatedRequest } from "../middlewares/authenticate.middleware";
 import { ChangePasswordDto } from "../../database/dtos/ChangePassword.dto";
-import { LoginOutputDto } from "../../database/dtos.output/LoginOutput.dto";
-import { instanceToPlain } from "class-transformer";
-import { RegisterOutputDto } from "../../database/dtos.output/RegisterOutput.dto";
 
 export class AuthController {
   // private authService = new AuthService();
@@ -17,14 +14,14 @@ export class AuthController {
   // Service is injected via constructor
   constructor(private authService: AuthService) {}
 
-  registerJobSeeker = async (
-    req: Request<{}, {}, RegisterDto>,
+  registerStudent = async (
+    req: Request<{}, {}, CreateUserDto>,
     res: Response
   ) => {
     // Delegate to AuthService, passing the registration data and the specific role
     const registeredJobSeeker = await this.authService.register(
       req.body,
-      UserRole.JOB_SEEKER
+      UserRole.STUDENT
     );
 
     return successResponse({
@@ -33,12 +30,12 @@ export class AuthController {
       data: { register: registeredJobSeeker },
     });
   };
-  registerEmployer = async (
-    req: Request<{}, {}, RegisterDto>,
+  registerEducator = async (
+    req: Request<{}, {}, CreateUserDto>,
     res: Response
   ) => {
     // Delegate to AuthService, passing the registration data and the specific role
-    const registeredEmployer = await this.authService.register(req.body, UserRole.EMPLOYER);
+    const registeredEmployer = await this.authService.register(req.body, UserRole.EDUCATOR);
 
     return successResponse({
       res,
@@ -47,7 +44,7 @@ export class AuthController {
     });
   };
   registerAdmin = async (
-    req: Request<{}, {}, RegisterDto>, 
+    req: Request<{}, {}, CreateUserDto>, 
     res: Response
   ) => {
     // Delegate to AuthService, passing the registration data and the specific role

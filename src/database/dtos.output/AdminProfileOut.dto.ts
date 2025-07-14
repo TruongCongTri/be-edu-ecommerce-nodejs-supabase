@@ -13,7 +13,6 @@ export class AdminProfileOutputDto extends BaseProfileOutputDto {
       fullName: user.fullName,
       email: user.email,
       role: user.role,
-      address: user.address ?? null, // Ensure address from User entity
     });
   }
 }

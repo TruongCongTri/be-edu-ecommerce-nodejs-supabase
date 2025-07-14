@@ -14,7 +14,7 @@ export class SkillOutputDto {
 
   @Expose()
   @Type(() => JobPartialOutputDto)
-  jobs?: JobPartialOutputDto[];
+  products?: JobPartialOutputDto[];
 
   constructor(partial: Partial<SkillOutputDto>) {
     Object.assign(this, partial);
@@ -25,7 +25,7 @@ export class SkillOutputDto {
       id: skill.id,
       name: skill.name,
       slug: skill.slug,
-      jobs: skill.jobs?.map(JobPartialOutputDto.fromEntity),
+      products: skill.products?.map(JobPartialOutputDto.fromEntity),
     });
   }
 }
