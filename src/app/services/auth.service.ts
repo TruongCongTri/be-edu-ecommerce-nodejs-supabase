@@ -6,7 +6,7 @@ import { User } from "../../database/entities/User";
 import { AppError } from "../../../utils/errors/AppError";
 import { UserRole } from "../../../constants/enum";
 
-import { LoginDto } from "../../database/dtos/login.dto";
+import { LoginDto } from "../../database/dtos/Login.dto";
 import { CreateUserDto } from "../../database/dtos/create-user.dto";
 import { ChangePasswordDto } from "../../database/dtos/change-password.dto";
 

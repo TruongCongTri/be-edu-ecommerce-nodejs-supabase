@@ -3,9 +3,9 @@ import { AuthService } from "../services/auth.service";
 import { successResponse } from "../../../utils/errors/responses/successResponse";
 import { CreateUserDto } from "../../database/dtos/create-user.dto";
 import { UserRole } from "../../../constants/enum";
-import { LoginDto } from "../../database/dtos/login.dto";
+import { LoginDto } from "../../database/dtos/Login.dto";
 import { AuthenticatedRequest } from "../middlewares/authenticate.middleware";
-import { ChangePasswordDto } from "../../database/dtos/ChangePassword.dto";
+import { ChangePasswordDto } from "../../database/dtos/change-password.dto";
 
 export class AuthController {
   // private authService = new AuthService();

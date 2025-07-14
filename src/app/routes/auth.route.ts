@@ -13,7 +13,7 @@ import { AuthService } from "../services/auth.service";
 import { authRepository } from "../repositories/auth.repository";
 
 import { CreateUserDto } from "../../database/dtos/create-user.dto";
-import { LoginDto } from "../../database/dtos/login.dto";
+import { LoginDto } from "../../database/dtos/Login.dto";
 import { ChangePasswordDto } from "../../database/dtos/change-password.dto";
 
 const router = Router();
