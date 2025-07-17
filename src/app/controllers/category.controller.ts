@@ -6,6 +6,20 @@ import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
 export class CategoryController {
   constructor(private cateService: CategoryService) {}
 
+  getCategories = async (
+    req: Request,
+    res: Response
+  ) => {
+
+    const { categories, pagination } = await this.cateService.getCategories();
+
+    return successResponse({
+      res,
+      message: "List of Categories fetched successfully",
+      data: { categories: categories },
+      pagination: pagination,
+    });
+  };
   // GET /api/categories
   getAllCategories = async (
     req: Request<any, BaseQueryParamsDto>,

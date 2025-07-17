@@ -5,9 +5,29 @@ import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
 import { AuthenticatedRequest } from "../middlewares/authenticate.middleware";
 import { CreateProductDto } from "../../database/dtos/create-product.dto";
 import { UpdateProductDto } from "../../database/dtos/update-product.dto";
+import { FilterProductQueryParamsDto } from "../../database/dtos/filter-product-query-params.dto";
 
 export class ProductController {
   constructor(private productService: ProductService) {}
+
+  // GET /api/filter/products
+  filterAllProducts = async (
+    req: Request<any, any, any, FilterProductQueryParamsDto>,
+    res: Response
+  ) => {
+    // Access the TRANSFORMED AND VALIDATED query parameters from req.validatedDto
+    const queryParams: FilterProductQueryParamsDto = req.validatedDto; // Cast it for TypeScript
+
+    const { products, pagination } =
+      await this.productService.filterAllProducts(queryParams);
+
+    return successResponse({
+      res,
+      message: "List of filtered Products fetched successfully",
+      data: { products: products },
+      pagination: pagination,
+    });
+  };
 
   // GET /api/products
   getAllProducts = async (
@@ -37,10 +57,11 @@ export class ProductController {
     const queryParams = req.query;
     const educatorId = req.user!.id;
 
-    const { products, pagination } = await this.productService.getAllProductsOfEducator(
-      queryParams,
-      educatorId
-    );
+    const { products, pagination } =
+      await this.productService.getAllProductsOfEducator(
+        queryParams,
+        educatorId
+      );
 
     return successResponse({
       res,
@@ -71,6 +92,20 @@ export class ProductController {
       res,
       message: "Product and its related data fetched successfully",
       data: { product: product },
+    });
+  };
+  // GET /api/products/educator/:id
+  getAllCoursesOfEducator = async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    const { products, pagination } =
+      await this.productService.getAllCoursesOfEducator(id);
+
+    return successResponse({
+      res,
+      message: "Educator's courses fetched successfully",
+      data: { products: products },
+      pagination: pagination,
     });
   };
 

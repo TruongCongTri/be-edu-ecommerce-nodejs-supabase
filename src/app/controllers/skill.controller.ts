@@ -6,6 +6,19 @@ import { BaseQueryParamsDto } from "../../database/dtos/BasicQueryParams.dto";
 export class SkillController {
   constructor(private skillService: SkillService) {}
 
+  getSkills = async (
+    req: Request,
+    res: Response
+  ) => {
+    const { skills, pagination } = await this.skillService.getSkills();
+
+    return successResponse({
+      res,
+      message: "List of Skills fetched successfully",
+      data: { skills: skills },
+      pagination: pagination,
+    });
+  };
   // GET /api/skills
   getAllSkills = async (
     req: Request<any, BaseQueryParamsDto>,

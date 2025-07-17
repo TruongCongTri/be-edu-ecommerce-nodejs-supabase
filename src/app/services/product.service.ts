@@ -24,6 +24,7 @@ import { buildQueryOptions } from "../../../utils/build-query-options";
 import { checkForbiddenWords } from "../../../utils/forbidden-words-checker";
 import { slugify } from "../../../utils/helpers/slugify.helper";
 import { createPaginationMeta } from "../../../utils/helpers/pagination.helper";
+import { FilterProductQueryParamsDto } from "../../database/dtos/filter-product-query-params.dto";
 
 export class ProductService {
   private productRepo: ProductRepositoryType;
@@ -114,6 +115,74 @@ export class ProductService {
     return educatorToFind;
   }
   // --- Public Methods (Exposed to Controllers) ---
+  // Filter products
+  filterAllProducts = async (
+    queryParams: FilterProductQueryParamsDto
+  ): Promise<{
+    products: ProductDto[];
+    pagination: PaginationMetaDto;
+  }> => {
+    // --- BLOCK 1: Destructure Query Parameters ---
+    const {
+      page = DEFAULT_PAGE,
+      per_page = DEFAULT_PER_PAGE,
+      search,
+      category_slugs,
+      skill_slugs,
+      min_price,
+      max_price,
+    } = queryParams;
+
+    // --- BLOCK 2: Create Query Builder ---
+    const qb = this.productRepo
+      .createQueryBuilder("product")
+      .leftJoinAndSelect("product.category", "category")
+      .leftJoinAndSelect("product.skills", "skill")
+      .leftJoinAndSelect("product.educator", "educator")
+      .orderBy("product.createdAt", "DESC");
+
+    // --- Apply search
+    if (search) {
+      qb.andWhere(
+        "(LOWER(product.name) LIKE :search OR LOWER(product.shortDesc) LIKE :search OR LOWER(product.longDesc) LIKE :search)",
+        { search: `%${search.toLowerCase()}%` }
+      );
+    }
+
+    // --- Filter by categories
+    if (category_slugs && category_slugs.length > 0) {
+      qb.andWhere("category.slug IN (:...category_slugs)", { category_slugs });
+    }
+
+    // --- Filter by skills (at least one matching)
+    if (skill_slugs && skill_slugs.length > 0) {
+      qb.andWhere("skill.slug IN (:...skill_slugs)", { skill_slugs });
+    }
+
+    // --- Price range
+    if (min_price !== undefined) {
+      qb.andWhere("product.price >= :min_price", { min_price });
+    }
+    if (max_price !== undefined) {
+      qb.andWhere("product.price <= :max_price", { max_price });
+    }
+
+    // --- Pagination
+    qb.skip((page - 1) * per_page).take(per_page);
+
+    // --- Execute
+    const [products, total] = await qb.getManyAndCount();
+
+    // --- Map to DTOs
+    const productDtos = products.map(ProductDto.fromEntity);
+    const paginationMeta = createPaginationMeta(page, per_page, total);
+
+    return {
+      products: productDtos,
+      pagination: paginationMeta,
+    };
+  };
+
   // READ products
   getAllProducts = async (
     queryParams: BaseQueryParamsDto
@@ -238,6 +307,34 @@ export class ProductService {
 
     // --- BLOCK 3: Return Data ---
     return prodDto;
+  };
+
+  // get a;; products (courses) belong to educator id
+  getAllCoursesOfEducator = async (
+    id: string,
+  ): Promise<{
+    products: ProductDto[];
+    pagination: PaginationMetaDto;
+  }> => {
+
+    const qb = this.productRepo
+      .createQueryBuilder("product")
+      .leftJoinAndSelect("product.category", "category")
+      .leftJoinAndSelect("product.skills", "skill")
+      .leftJoinAndSelect("product.educator", "educator")
+      .where("educator.id = :id", { id })
+      .orderBy("product.createdAt", "DESC");
+
+
+    const [products, total] = await qb.getManyAndCount();
+
+    const productDtos = products.map(ProductDto.fromEntity);
+    const paginationMeta = createPaginationMeta(1, total, total);
+
+    return {
+      products: productDtos,
+      pagination: paginationMeta,
+    };
   };
 
   // CREATE new Product - restricted access for only admin

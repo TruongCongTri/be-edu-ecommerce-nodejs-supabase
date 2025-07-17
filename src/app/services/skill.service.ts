@@ -39,13 +39,31 @@ export class SkillService {
       where: { slug },
       relations: relations,
     });
-    
+
     if (!skill) throw new AppError("Skill not found", 404);
 
     return skill;
   }
 
   // --- Public Methods (Exposed to Controllers) ---
+  getSkills = async (): Promise<{
+    skills: SkillDto[];
+    pagination: PaginationMetaDto;
+  }> => {
+    // --- BLOCK 3: Execute Database Query (findAndCount) ---
+    const [skills, total] = await this.skillRepo.findAndCount();
+
+    // --- BLOCK 4: Map Entities to DTOs ---
+    const skillDtos = skills.map(SkillDto.fromEntity);
+
+    // --- BLOCK 5: Calculate and Create Pagination Metadata ---
+    const paginationMeta = createPaginationMeta(1, total, total);
+    // --- BLOCK 6: Return Data and Pagination Metadata ---
+    return {
+      skills: skillDtos,
+      pagination: paginationMeta,
+    };
+  };
   // READ skills
   getAllSkills = async (
     queryParams: BaseQueryParamsDto
@@ -127,7 +145,6 @@ export class SkillService {
     // --- BLOCK 1: Call the private method to get the entity ---
     const skill = await this.getSkillEntity(slug);
 
-
     // --- BLOCK 2: Map Entities to DTOs ---
     const skillDto = SkillDto.fromEntity(skill);
 
@@ -151,7 +168,10 @@ export class SkillService {
   // CREATE new skill - restricted access for only admin
   createSkill = async (dto: CreateSkillDto): Promise<SkillDto> => {
     // --- BLOCK 1: Call the private method to get the entity ---
-    checkForbiddenWords({name: dto.name, description: dto.description}, "Skill");
+    checkForbiddenWords(
+      { name: dto.name, description: dto.description },
+      "Skill"
+    );
 
     // --- BLOCK 2: Manual check for unique name before attempting to save ---
     const existing = await this.skillRepo.findOneBy({ name: dto.name });

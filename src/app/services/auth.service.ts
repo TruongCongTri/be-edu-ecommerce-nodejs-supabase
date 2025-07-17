@@ -113,7 +113,10 @@ export class AuthService {
    * @param role The role to assign to the new user (e.g., UserRole.JOB_SEEKER).
    * @returns The newly created User entity.
    */
-  register = async (dto: CreateUserDto, role: UserRole): Promise<RegisterOutputDto> => {
+  register = async (
+    dto: CreateUserDto,
+    role: UserRole
+  ): Promise<RegisterOutputDto> => {
     // 1. Check if email already exists
     const existing = await this.authRepo.findOne({
       where: { email: dto.email },
@@ -157,12 +160,12 @@ export class AuthService {
     // 3. Generate JWT token
     // Ensure `user.role` property exists on your User entity
     const token = jwt.sign(
-      { id: user.id, role: user.role }, // Payload: user ID and role
+      { id: user.id, name: user.fullName, email: user.email, role: user.role }, // Payload: user ID and role
       JWT_SECRET, // Secret key
       { expiresIn: JWT_EXPIRES_IN }
     ); // Token expiration
 
-    const loginData = LoginOutputDto.fromData(token);
+    const loginData = LoginOutputDto.fromData(token, user);
 
     // 4. Return the token
     return loginData;
@@ -182,7 +185,10 @@ export class AuthService {
     const user = await this.getUserByIdEntity(userId, true); // true to select password
 
     // 2. Verify the current password.
-    const isMatch = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    const isMatch = await bcrypt.compare(
+      dto.currentPassword,
+      user.passwordHash
+    );
     if (!isMatch) throw new AppError("Current password is incorrect", 401);
 
     // 3. Hash the new password.

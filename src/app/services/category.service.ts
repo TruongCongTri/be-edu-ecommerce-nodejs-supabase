@@ -16,6 +16,7 @@ import { DEFAULT_PAGE, DEFAULT_PER_PAGE } from "../../../constants/enum";
 import { buildQueryOptions } from "../../../utils/build-query-options";
 import { createPaginationMeta } from "../../../utils/helpers/pagination.helper";
 import { checkForbiddenWords } from "../../../utils/forbidden-words-checker";
+import { th } from "@faker-js/faker/.";
 
 export class CategoryService {
   private cateRepo: CategoryRepositoryType;
@@ -43,6 +44,25 @@ export class CategoryService {
   }
 
   // --- Public Methods (Exposed to Controllers) ---
+  getCategories = async (): Promise<{
+    categories: CategoryDto[];
+    pagination: PaginationMetaDto;
+  }> => {
+    // --- BLOCK 3: Execute Database Query (findAndCount) ---
+
+    const [categories, total] = await this.cateRepo.findAndCount();
+    // --- BLOCK 4: Map Entities to DTOs ---
+    const cateDtos = categories.map(CategoryDto.fromEntity);
+
+    // --- BLOCK 5: Calculate and Create Pagination Metadata ---
+    const paginationMeta = createPaginationMeta(1, total, total);
+
+    // --- BLOCK 6: Return Data and Pagination Metadata ---
+    return {
+      categories: cateDtos,
+      pagination: paginationMeta,
+    };
+  };
   // READ categories
   getAllCategories = async (
     queryParams: BaseQueryParamsDto

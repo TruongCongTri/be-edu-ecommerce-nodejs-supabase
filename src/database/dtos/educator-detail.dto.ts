@@ -1,12 +1,14 @@
-import { Expose } from "class-transformer";
+import { Expose, Type } from "class-transformer";
 import { EducatorDetail } from "../entities/EducatorDetail";
+import { UserDto } from "./user.dto";
 
 export class EducatorDetailDto {
   @Expose()
   id!: string;
 
   @Expose()
-  userId!: string;
+  @Type(() => UserDto)
+  user?: UserDto;
 
   @Expose()
   bio?: string;
@@ -24,7 +26,7 @@ export class EducatorDetailDto {
   static fromEntity(educator: EducatorDetail): EducatorDetailDto {
     return new EducatorDetailDto({
       id: educator.id,
-      userId: educator.user.id,
+      user: educator.user,
       bio: educator.bio || "",
       expertise: educator.expertise || "",
     });

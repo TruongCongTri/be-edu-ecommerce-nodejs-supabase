@@ -20,6 +20,9 @@ router.get("/",
   validateRequest(BaseQueryParamsDto, "query"),
   asyncHandler(categoryController.getAllCategories)
 );
+router.get("/all", 
+  asyncHandler(categoryController.getCategories)
+);
 // Public access: Get all categories with their products
 router.get("/products", 
   validateRequest(BaseQueryParamsDto, "query"),

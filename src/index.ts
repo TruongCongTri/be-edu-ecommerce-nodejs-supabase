@@ -29,6 +29,7 @@ import AdminFavoriteRouter from "./app/routes/admin.favorite.route";
 import AdminAllowedOriginRouter from "./app/routes/admin.allowed-origin.route";
 import AdminForbiddenWordRouter from "./app/routes/admin.forbidden-word.route";
 
+import EducatorRouter from "./app/routes/educator.route";
 
 import { AllowedOriginService } from "./app/services/allowed-origin.service";
 
@@ -99,6 +100,8 @@ AppDataSource.initialize()
     app.use("/api/admin/allowed-origins", AdminAllowedOriginRouter);
     app.use("/api/admin/forbidden-words", AdminForbiddenWordRouter);
 
+    app.use("/api/educators", EducatorRouter);
+    
     app.use(errorHandler);
   })
   .catch((error) => console.log(error))

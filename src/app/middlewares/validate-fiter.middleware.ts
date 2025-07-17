@@ -26,7 +26,7 @@ declare module "express" {
 //   };
 // }
 
-export function validateRequest<T extends object>(
+export function validateFilterRequest<T extends object>(
   dtoClass: new () => T,
   source: "body" | "params" | "query" = "body"
 ) {

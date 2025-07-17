@@ -20,6 +20,9 @@ router.get("/",
   validateRequest(BaseQueryParamsDto, "query"),
   asyncHandler(skillController.getAllSkills)
 );
+router.get("/all", 
+  asyncHandler(skillController.getSkills)
+);
 // Public access: Get all skills with their products
 router.get("/products", 
   validateRequest(BaseQueryParamsDto, "query"),

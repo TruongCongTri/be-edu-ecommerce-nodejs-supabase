@@ -1,4 +1,4 @@
-import { Expose } from "class-transformer";
+import { Exclude, Expose } from "class-transformer";
 import { User } from "../entities/User";
 
 export class UserDto {
@@ -11,6 +11,9 @@ export class UserDto {
   @Expose()
   fullName!: string;
 
+  @Exclude() // This decorator tells class-transformer to exclude this property
+  passwordHash?: string;
+  
   @Expose()
   role!: string;
 
